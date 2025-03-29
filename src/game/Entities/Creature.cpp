@@ -938,7 +938,6 @@ bool Creature::IsTrainerOf(Player* pPlayer, bool msg) const
                 if (msg)
                 {
                     pPlayer->GetPlayerMenu()->ClearMenus();
-                    pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_TRAINER, "I wish test.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRAIN);
                     switch (GetCreatureInfo()->TrainerClass)
                     {
                         case CLASS_DRUID:  pPlayer->GetPlayerMenu()->SendGossipMenu(4913, GetObjectGuid()); break;
