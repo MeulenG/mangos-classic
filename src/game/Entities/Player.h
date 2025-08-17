@@ -69,6 +69,10 @@ class PlayerbotAI;
 class PlayerbotMgr;
 #endif
 
+#ifdef ENABLE_MODULES
+#include "ModuleMgr.h"
+#endif
+
 struct AreaTrigger;
 
 typedef std::deque<Mail*> PlayerMails;
