@@ -1389,6 +1389,10 @@ class Player : public Unit
                 SetMoney(GetMoney() > uint32(-d) ? GetMoney() + d : 0);
             else
                 SetMoney(GetMoney() < uint32(MAX_MONEY_AMOUNT - d) ? GetMoney() + d : MAX_MONEY_AMOUNT);
+
+#ifdef ENABLE_MODULES
+            sModuleMgr.OnModifyMoney(this, d);
+#endif
         }
         void SetMoney(uint32 value)
         {

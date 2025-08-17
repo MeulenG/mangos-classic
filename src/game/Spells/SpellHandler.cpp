@@ -29,6 +29,9 @@
 #include "Entities/Totem.h"
 #include "Spells/SpellAuras.h"
 #include "Loot/LootMgr.h"
+#ifdef ENABLE_MODULES
+#include "ModuleMgr.h"
+#endif
 
 void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
 {
@@ -144,6 +147,11 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     }
 
     _player->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_ITEM_USE);
+
+#ifdef ENABLE_MODULES
+    if (sModuleMgr.OnUseItem(pUser, pItem))
+        return;
+#endif
 
     // Note: If script stop casting it must send appropriate data to client to prevent stuck item in gray state.
     if (!sScriptDevAIMgr.OnItemUse(pUser, pItem, targets))

@@ -7,6 +7,14 @@ option(BUILD_LOGIN_SERVER                   "Build login server"                
 option(BUILD_EXTRACTORS                     "Build map/dbc/vmap/mmap extractors"        OFF)
 option(BUILD_SCRIPTDEV                      "Build ScriptDev. (OFF Speedup build)"      ON)
 option(BUILD_PLAYERBOTS                     "Build Playerbots mod"                      OFF)
+# Modules
+option(BUILD_MODULES                        "Build module system"                       OFF)
+foreach(MODULE_NAME ${MODULE_NAMES})
+  if(NOT ${MODULE_NAME} STREQUAL "MODULES")
+    string(TOLOWER ${MODULE_NAME} LOWER_MODULE_NAME)
+	option(BUILD_MODULE_${MODULE_NAME} "Build ${LOWER_MODULE_NAME} module" OFF)
+  endif()
+endforeach()
 option(BUILD_AHBOT                          "Build Auction House Bot mod"               OFF)
 option(BUILD_METRICS                        "Build Metrics, generate data for Grafana"  OFF)
 option(BUILD_RECASTDEMOMOD                  "Build map/vmap/mmap viewer"                OFF)
@@ -35,6 +43,7 @@ message(STATUS
     BUILD_LOGIN_SERVER      Build login server (auth server)
     BUILD_EXTRACTORS        Build map/dbc/vmap/mmap extractor
     BUILD_PLAYERBOTS        Build Playerbots mod
+    BUILD_MODULES           Build module system
     BUILD_AHBOT             Build Auction House Bot mod
     BUILD_METRICS           Build Metrics, generate data for Grafana
     BUILD_RECASTDEMOMOD     Build map/vmap/mmap viewer
