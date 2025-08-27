@@ -11,63 +11,56 @@ confinement: strict
 
 apps:
   mangosd:
-    command: mangosd
+    command: parts/cmangos-server/build/bin/mangosd
     daemon: simple
     restart-condition: always
     plugs: [network, network-bind]
     environment:
-      MYSQL_ROOT_PASSWORD: $SNAP_COMMON/mysql_root_password
+      MYSQL_ROOT_PASSWORD: $SNAP_COMMON/mangos
       MYSQL_UNIX_PORT: $SNAP_COMMON/mysql.sock
 
   realmd:
-    command: realmd
+    command: parts/cmangos-server/build/bin/realmd
     daemon: simple
     restart-condition: always
     plugs: [network, network-bind]
     environment:
-      MYSQL_ROOT_PASSWORD: $SNAP_COMMON/mysql_root_password
+      MYSQL_ROOT_PASSWORD: $SNAP_COMMON/mangos123
       MYSQL_UNIX_PORT: $SNAP_COMMON/mysql.sock
 
 parts:
   cmangos-server:
     plugin: cmake
-    source: .
+    source: releases/0.1/Test-Build.zip
+    build-environment:
+    - CFLAGS: "-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DBUILD_MODULES=ON -DBUILD_MODULE_MANGOSTOOL=ON"
     build-packages:
-      - g++
-      - cmake
+      - build-essential
+      - gcc-12
+      - g++-12
+      - automake
+      - git-core
+      - autoconf
       - make
-      - git
+      - patch
+      - libmysql++-dev
+      - mysql-server
+      - libtool
       - libssl-dev
-      - libmysqlclient-dev
+      - grep
+      - binutils
       - zlib1g-dev
+      - libbz2-dev
+      - cmake
+      - libboost-all-dev
     stage-packages:
       - mysql-server
       - mysql-client
-
-  sql-files:
-    plugin: dump
-    source: ./sql
-    organize:
-      'realmd.sql': sql/realmd.sql
-      'characters.sql': sql/characters.sql
-      'world.sql': sql/world.sql
-
-hooks:
-  install: |
-    #!/bin/sh
-    echo "Initializing MySQL databases..."
-    mysqld --initialize-insecure --datadir=$SNAP_COMMON/mysql
-    mysqld_safe --datadir=$SNAP_COMMON/mysql &
-    sleep 10
-
-    echo "Importing SQL files..."
-    mysql -u root --socket=$SNAP_COMMON/mysql.sock <<EOF
-    CREATE DATABASE IF NOT EXISTS realmd;
-    CREATE DATABASE IF NOT EXISTS characters;
-    CREATE DATABASE IF NOT EXISTS world;
-    SOURCE $SNAP/sql/realmd.sql;
-    SOURCE $SNAP/sql/characters.sql;
-    SOURCE $SNAP/sql/world.sql;
-    EOF
-
-    echo "MySQL initialization completed."
+    override-build: |
+      update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 120 \
+          --slave /usr/bin/g++ g++ /usr/bin/g++-12
+      export CC=gcc
+      export CXX=g++
+      cmake $SNAPCRAFT_PART_SRC -DCMAKE_INSTALL_PREFIX=/usr/local
+      make -j$(nproc)
+      make install
