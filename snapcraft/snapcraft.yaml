@@ -31,9 +31,7 @@ apps:
 parts:
   cmangos-server:
     plugin: cmake
-    source: releases/0.1/Test-Build.zip
-    build-environment:
-    - CFLAGS: "-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DBUILD_MODULES=ON -DBUILD_MODULE_MANGOSTOOL=ON"
+    source: releases/cmangos-server-build.zip
     build-packages:
       - build-essential
       - gcc-12
@@ -51,16 +49,22 @@ parts:
       - binutils
       - zlib1g-dev
       - libbz2-dev
-      - cmake
       - libboost-all-dev
+      - curl
+      - libcurl4-openssl-dev
     stage-packages:
       - mysql-server
       - mysql-client
+    build-snaps:
+      - cmake/latest/stable
+    build-environment:
+      - GIT_SSL_NO_VERIFY: 1
+      - PATH: /snap/bin:$PATH
     override-build: |
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 120 \
           --slave /usr/bin/g++ g++ /usr/bin/g++-12
       export CC=gcc
       export CXX=g++
-      cmake $SNAPCRAFT_PART_SRC -DCMAKE_INSTALL_PREFIX=/usr/local
-      make -j$(nproc)
+      cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=RelWithDebInfo $SNAPCRAFT_PART_SRC -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DBUILD_MODULES=ON -DBUILD_MODULE_MANGOSTOOL=ON
+      make -j6
       make install
