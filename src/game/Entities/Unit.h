@@ -1211,7 +1211,8 @@ class Unit : public WorldObject
          */
         bool CanReachWithMeleeAttack(Unit const* pVictim, float flat_mod = 0.0f) const;
         uint32 m_extraAttacks;
-        void DoExtraAttacks(Unit* pVictim);
+        ObjectGuid m_extraAttackGuid;
+        void DoExtraAttacks(Unit* victim);
 
         bool IsAttackedBy(Unit* attacker) const
         {
@@ -1774,6 +1775,7 @@ class Unit : public WorldObject
         bool IsMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
         bool IsMovingForward() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING_FORWARD); }
         bool IsLevitating() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_LEVITATING); }
+        bool IsHovering() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_HOVER); }
         bool IsWalking() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_WALK_MODE); }
         bool IsRooted() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_ROOT); }
         bool IsFalling() const { return m_movementInfo.HasMovementFlag(MOVEFLAG_JUMPING); }
@@ -2050,7 +2052,7 @@ class Unit : public WorldObject
         bool isVisibleForInState(Player const* u, WorldObject const* viewPoint, bool inVisibleList) const override;
         // function for low level grid visibility checks in player/creature cases
         virtual bool IsVisibleInGridForPlayer(Player* pl) const = 0;
-        bool isInvisibleForAlive() const;
+        virtual bool isInvisibleForAlive() const;
 
         TrackedAuraTargetMap&       GetTrackedAuraTargets(TrackedAuraType type)       { return m_trackedAuraTargets[type]; }
         TrackedAuraTargetMap const& GetTrackedAuraTargets(TrackedAuraType type) const { return m_trackedAuraTargets[type]; }
@@ -2111,6 +2113,8 @@ class Unit : public WorldObject
         int32 GetMaxPositiveAuraModifierByMiscValue(AuraType auratype, int32 misc_value) const;
         int32 GetMaxNegativeAuraModifierByMiscValue(AuraType auratype, int32 misc_value) const;
 
+        int32 GetMaxPositiveAuraModifierByItemClass(AuraType auratype, Item* weapon) const;
+
         Aura* GetDummyAura(uint32 spell_id) const;
 
         uint32 m_AuraFlags;
@@ -2149,7 +2153,7 @@ class Unit : public WorldObject
         void UnsummonAllTotems() const;
         Unit* SelectMagnetTarget(Unit* victim, Spell* spell = nullptr);
 
-        int32 SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffectIndex effectIndex, int32 total, int32 benefit, int32 ap_benefit, DamageEffectType damagetype, bool donePart);
+        int32 SpellBonusWithCoeffs(SpellEntry const* spellProto, SpellEffectIndex effectIndex, int32 total, int32 benefit, int32 ap_benefit, bool donePart);
         int32 SpellBaseDamageBonusDone(SpellSchoolMask schoolMask);
         int32 SpellBaseDamageBonusTaken(SpellSchoolMask schoolMask) const;
         uint32 SpellDamageBonusDone(Unit* victim, SpellSchoolMask schoolMask, SpellEntry const* spellInfo, SpellEffectIndex effectIndex, uint32 pdamage, DamageEffectType damagetype, uint32 stack = 1);
@@ -2397,7 +2401,7 @@ class Unit : public WorldObject
         void UpdateAllowedPositionZ(float x, float y, float& z, Map* atMap = nullptr) const override;
         void AdjustZForCollision(float x, float y, float& z, float halfHeight) const override;
 
-        virtual uint32 GetSpellRank(SpellEntry const* spellInfo);
+        virtual uint32 GetSpellRank(SpellEntry const* spellInfo) const;
 
         bool HasOverrideScript(uint32 id) const;
         Aura* GetOverrideScript(uint32 id) const;
@@ -2430,8 +2434,8 @@ class Unit : public WorldObject
         virtual bool IsPreventingDeath() const { return false; }
 
         virtual CreatureInfo const* GetMountInfo() const { return nullptr; } // TODO: Meant to be used by players during taxi
-        virtual void SetMountInfo(CreatureInfo const* info) {} // does nothing for base unit
-        virtual void SetModelRunSpeed(float runSpeed) {} // does nothing for base unit
+        virtual void SetMountInfo(CreatureInfo const* /*info*/) {} // does nothing for base unit
+        virtual void SetModelRunSpeed(float /*runSpeed*/) {} // does nothing for base unit
 
     protected:
         bool MeetsSelectAttackingRequirement(Unit* target, SpellEntry const* spellInfo, uint32 selectFlags, SelectAttackingTargetParams params, int32 unitConditionId) const;
@@ -2634,6 +2638,8 @@ class Unit : public WorldObject
 
         bool m_aoeImmune;
         bool m_chainImmune;
+
+        TimePoint m_lastMoveTime; // used for resetting combat timer on melee
 
     private:                                                // Error traps for some wrong args using
         // this will catch and prevent build for any cases when all optional args skipped and instead triggered used non boolean type

@@ -21,6 +21,7 @@
 
 #include "Database/DatabaseEnv.h"
 #include "Entities/ObjectGuid.h"
+#include "Globals/EnumFlag.h"
 
 class SocialMgr;
 class PlayerSocial;
@@ -40,7 +41,7 @@ enum SocialFlag
 {
     SOCIAL_FLAG_FRIEND      = 0x01,
     SOCIAL_FLAG_IGNORED     = 0x02,
-    SOCIAL_FLAG_MUTED       = 0x04,                         // guessed
+    SOCIAL_FLAG_MUTED       = 0x04,
 };
 
 struct FriendInfo

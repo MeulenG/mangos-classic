@@ -110,10 +110,9 @@ GenericTransport* Map::GetTransport(ObjectGuid guid)
             return transport;
         }
     }
-    if (guid.GetEntry())
-        if (GameObject* go = GetGameObject(guid))
-            if (go->IsTransport())
-                return static_cast<GenericTransport*>(go);
+    if (GameObject* go = GetGameObject(guid))
+        if (go->IsTransport())
+            return static_cast<GenericTransport*>(go);
     return nullptr;
 }
 
@@ -139,7 +138,7 @@ bool Map::CanSpawn(TypeID typeId, uint32 dbGuid)
 {
     if (typeId == TYPEID_UNIT)
         return GetCreatureLinkingHolder()->CanSpawn(dbGuid, this, nullptr, 0.f, 0.f);
-    else if (TYPEID_GAMEOBJECT)
+    else if (typeId == TYPEID_GAMEOBJECT)
         return true;
     return false;
 }
@@ -200,13 +199,28 @@ void Map::Initialize(bool loadInstanceData /*= true*/)
 
     m_spawnManager.Initialize();
 
-    MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld.GetDataPath(), GetId(), GetInstanceId());
-    if (sWorld.getConfig(CONFIG_BOOL_PRELOAD_MMAP_TILES))
-        MMAP::MMapFactory::createOrGetMMapManager()->loadAllMapTiles(sWorld.GetDataPath(), GetId());
+    auto mmap = MMAP::MMapFactory::createOrGetMMapManager();
+    if (mmap->IsEnabled())
+    {
+        MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld.GetDataPath(), GetId(), GetInstanceId());
+        if (sWorld.getConfig(CONFIG_BOOL_PRELOAD_MMAP_TILES))
+            MMAP::MMapFactory::createOrGetMMapManager()->loadAllMapTiles(sWorld.GetDataPath(), GetId());
+    }
 
     sObjectMgr.LoadActiveEntities(this);
 
     LoadTransports();
+
+    switch (GetId())
+    {
+        case 533: // naxxramas
+        {
+            // TODO: Make this into a flag for creature on map init
+            ForceLoadGrid(3746.41f, -5113.35f); // KT
+            ForceLoadGrid(2520.50f, -2955.38f); // Four horsemen
+            break;
+        }
+    }
 }
 
 void Map::InitVisibilityDistance()

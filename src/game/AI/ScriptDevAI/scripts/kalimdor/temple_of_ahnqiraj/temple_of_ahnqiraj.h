@@ -48,7 +48,7 @@ enum
     GO_TWINS_EXIT_DOOR          = 180635,
     GO_SANDWORM_BASE            = 180795,
 
-    EMOTE_EYE_INTRO             = -1531012,
+    EMOTE_EYE_INTRO             = 11700,
     STAND_EMPERORS_INTRO        = 1,
     SAY_EMPERORS_INTRO_1        = -1531013,
     SAY_EMPERORS_INTRO_2        = -1531014,
@@ -81,6 +81,7 @@ enum
 
     SPELL_SUMMON_PORTAL         = 26396,
     SPELL_SUMMON_GIANT_PORTAL   = 26477,
+    SPELL_BIRTH_TENTACLE        = 26586,
 
     NPC_POISON_CLOUD            = 15933,
 
@@ -97,7 +98,7 @@ static const uint32 qiraji_mount_auras[] = { 25953, 26054, 26055, 26056 };
 class instance_temple_of_ahnqiraj : public ScriptedInstance, private DialogueHelper
 {
     public:
-        instance_temple_of_ahnqiraj(Map* pMap);
+        instance_temple_of_ahnqiraj(Map* map);
         ~instance_temple_of_ahnqiraj() {}
 
         void Initialize() override;
@@ -106,23 +107,23 @@ class instance_temple_of_ahnqiraj : public ScriptedInstance, private DialogueHel
 
         void OnCreatureCreate(Creature* creature) override;
         void OnCreatureDeath(Creature* creature) override;
-        void OnObjectCreate(GameObject* pGo) override;
+        void OnObjectCreate(GameObject* go) override;
         void OnCreatureRespawn(Creature* creature) override;
 
         void OnPlayerLeave(Player* pPlayer) override;
 
-        void SetData(uint32 uiType, uint32 uiData) override;
-        uint32 GetData(uint32 uiType) const override;
+        void SetData(uint32 type, uint32 data) override;
+        uint32 GetData(uint32 type) const override;
 
         void DoHandleTempleAreaTrigger(uint32 triggerId, Player* player);
 
         const char* Save() const override { return m_strInstData.c_str(); }
         void Load(const char* chrIn) override;
 
-        void Update(uint32 uiDiff) override;
+        void Update(uint32 diff) override;
 
     private:
-        uint32 m_auiEncounter[MAX_ENCOUNTER];
+        uint32 m_encounter[MAX_ENCOUNTER];
         std::string m_strInstData;
 
         uint8 m_uiBugTrioDeathCount;

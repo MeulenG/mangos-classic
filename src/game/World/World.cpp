@@ -68,6 +68,7 @@
 #include "Maps/TransportMgr.h"
 #include "Anticheat/Anticheat.hpp"
 #include "LFG/LFGMgr.h"
+#include "Spells/SpellStacking.h"
 
 #ifdef BUILD_AHBOT
  #include "AuctionHouseBot/AuctionHouseBot.h"
@@ -840,6 +841,8 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_PATH_FIND_OPTIMIZE, "PathFinder.OptimizePath", true);
     setConfig(CONFIG_BOOL_PATH_FIND_NORMALIZE_Z, "PathFinder.NormalizeZ", false);
 
+    setConfig(CONFIG_BOOL_REGEN_ZONE_AREA_ON_STARTUP, "Spawns.ZoneArea", false);
+
     sLog.outString();
 }
 
@@ -897,6 +900,9 @@ void World::SetInitialWorldSettings()
     /// load spell_dbc first! dbc's need them
     sLog.outString("Loading spell_template...");
     sObjectMgr.LoadSpellTemplate();
+
+    sLog.outString("Loading spell groups...");
+    sSpellStacker.LoadSpellGroups();
 
     // Load before npc_text, gossip_menu_option, script_texts
     sLog.outString("Loading broadcast_text...");
@@ -957,6 +963,9 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading Page Texts...");
     sObjectMgr.LoadPageTexts();
 
+    sLog.outString("Loading String Ids...");
+    sScriptMgr.LoadStringIds(); // must be before LoadCreatureSpawnDataTemplates
+
     sLog.outString("Loading Game Object Templates...");     // must be after LoadPageTexts
     std::vector<uint32> transportDisplayIds = sObjectMgr.LoadGameobjectInfo();
     MMAP::MMapFactory::createOrGetMMapManager()->loadAllGameObjectModels(GetDataPath(), transportDisplayIds);
@@ -1016,9 +1025,6 @@ void World::SetInitialWorldSettings()
     sLog.outString("Loading Creature Stats...");
     sObjectMgr.LoadCreatureClassLvlStats();
 
-    sLog.outString("Loading String Ids...");
-    sScriptMgr.LoadStringIds(); // must be before LoadCreatureSpawnDataTemplates
-
     sLog.outString("Loading Creature templates...");
     sObjectMgr.LoadCreatureTemplates();
 
@@ -1072,6 +1078,12 @@ void World::SetInitialWorldSettings()
 
     sLog.outString("Loading Gameobject Data...");
     sObjectMgr.LoadGameObjects();
+
+    if (getConfig(CONFIG_BOOL_REGEN_ZONE_AREA_ON_STARTUP))
+    {
+        sLog.outString("Generating zone and area ids for creatures and gameobjects...");
+        sObjectMgr.GenerateZoneAndAreaIds();
+    }
 
     sLog.outString("Loading SpellsScriptTarget...");
     sSpellMgr.LoadSpellScriptTarget();                      // must be after LoadCreatureTemplates, LoadCreatures and LoadGameobjectInfo

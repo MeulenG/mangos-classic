@@ -828,14 +828,15 @@ void GameEventMgr::GameEventSpawn(int16 event_id)
     if (!dbGuidsToForward.empty())
     {
         // world thread will always have valid pointers to maps
-        sWorld.GetMessager().AddMessage([=](World* world)
+        sWorld.GetMessager().AddMessage([=](World* /*world*/)
         {
             for (auto& data : dbGuidsToForward)
             {
                 sObjectMgr.AddDynGuidForMap(data.first, data.second);
-                sMapMgr.DoForAllMapsWithMapId(data.first, [&](Map* map) // reference pass because executed in place
+                uint32 mapId = data.first;
+                sMapMgr.DoForAllMapsWithMapId(mapId, [dbGuids = data.second](Map* map) // reference pass because executed in place
                 {
-                    map->GetMessager().AddMessage([dbGuids = data.second](Map* map) // double indirection so it executes in map thread
+                    map->GetMessager().AddMessage([dbGuids](Map* map) // double indirection so it executes in map thread
                     {
                         for (uint32 creatureDbGuid : dbGuids.first)
                         {
@@ -936,14 +937,14 @@ void GameEventMgr::GameEventUnspawn(int16 event_id)
     if (!dbGuidsToForward.empty())
     {
         // world thread will always have valid pointers to maps
-        sWorld.GetMessager().AddMessage([=](World* world)
+        sWorld.GetMessager().AddMessage([=](World* /*world*/)
         {
             for (auto& data : dbGuidsToForward)
             {
                 sObjectMgr.RemoveDynGuidForMap(data.first, data.second);
-                sMapMgr.DoForAllMapsWithMapId(data.first, [&](Map* map) // reference pass because executed in place
+                sMapMgr.DoForAllMapsWithMapId(data.first, [dbGuids = data.second](Map* map) // reference pass because executed in place
                 {
-                    map->GetMessager().AddMessage([dbGuids = data.second](Map* map) // double indirection so it executes in map thread
+                    map->GetMessager().AddMessage([dbGuids](Map* map) // double indirection so it executes in map thread
                     {
                         for (uint32 creatureDbGuid : dbGuids.first)
                         {

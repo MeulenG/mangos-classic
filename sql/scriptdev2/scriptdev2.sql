@@ -363,6 +363,7 @@ INSERT INTO scripted_areatrigger VALUES
 UPDATE creature_template SET ScriptName='npc_eris_havenfire' WHERE entry=14494;
 
 /* ELWYNN FOREST */
+UPDATE gameobject_template SET ScriptName = 'go_marshal_haggards_chest' WHERE entry=1562;
 
 /* FELWOOD */
 UPDATE creature_template SET ScriptName='npc_kitten' WHERE entry=9937;
@@ -437,7 +438,6 @@ UPDATE creature_template SET ScriptName='boss_heigan' WHERE entry=15936;
 UPDATE creature_template SET ScriptName='boss_loatheb' WHERE entry=16011;
 UPDATE creature_template SET ScriptName='boss_razuvious' WHERE entry=16061;
 UPDATE creature_template SET ScriptName='boss_gothik' WHERE entry=16060;
-UPDATE creature_template SET ScriptName='spell_anchor' WHERE entry=16137;
 UPDATE creature_template SET ScriptName='boss_thane_korthazz' WHERE entry=16064;
 UPDATE creature_template SET ScriptName='boss_sir_zeliek' WHERE entry=16063;
 UPDATE creature_template SET ScriptName='boss_lady_blaumeux' WHERE entry=16065;
@@ -556,6 +556,7 @@ UPDATE creature_template SET ScriptName='npc_field_marshal_afrasiabi' WHERE entr
 /* STRANGLETHORN VALE */
 UPDATE creature_template SET ScriptName='mob_yenniku' WHERE entry=2530;
 UPDATE gameobject_template SET ScriptName='go_transpolyporter_bb' WHERE entry IN(142172);
+UPDATE creature_template SET ScriptName='mob_colonel_kurzen' WHERE entry=813;
 
 /* STRATHOLME */
 UPDATE instance_template SET ScriptName='instance_stratholme' WHERE map=329;
@@ -674,6 +675,7 @@ UPDATE creature_template SET ScriptName='npc_foreman_klaven_mortwake' WHERE entr
 /* WETLANDS */
 UPDATE creature_template SET ScriptName='npc_tapoke_slim_jahn' WHERE entry=4962;
 UPDATE creature_template SET ScriptName='npc_mikhail' WHERE entry=4963;
+UPDATE gameobject_template SET ScriptName = 'go_flagongut_fossil' WHERE entry=9630;
 
 /* WINTERSPRING */
 UPDATE creature_template SET ScriptName='npc_ranshalla' WHERE entry=10300;
@@ -859,10 +861,8 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 
 ('-1000194','I give up! Please don''t kill me!','0','0','0','0','0','unkor SAY_SUBMIT'),
 
-('-1000195','Thank you again, $N. I''ll make my way to the road now. When you can, find Terenthis and let him know we escaped.','0','0','0','1','1236','volcor SAY_ESCAPE'),
-
-('-1000196','Belore...','0','0','1','0','0','lady_sylvanas SAY_LAMENT_END'),
-('-1000197','%s kneels down and pick up the amulet.','0','2','1','16','0','lady_sylvanas EMOTE_LAMENT_END'),
+('-1000196','Belore...','0','0','1','0','19263','lady_sylvanas SAY_LAMENT_END'),
+('-1000197','Sighing, %s kneels down and picks up the amulet.','0','2','1','16','19244','lady_sylvanas EMOTE_LAMENT_END'),
 
 ('-1000198','Taste blade, mongrel!','0','0','0','0','10950','SAY_GUARD_SIL_AGGRO1'),
 ('-1000199','Please tell me that you didn''t just do what I think you just did. Please tell me that I''m not going to have to hurt you... ','0','0','0','0','10951','SAY_GUARD_SIL_AGGRO2'),
@@ -1014,23 +1014,9 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 ('-1000325','"Threshwackonator First Mate unit prepared to follow"','0','2','0','0','0','threshwackonator EMOTE_START'),
 ('-1000326','YARRR! Swabie, what have ye done?! He''s gone mad! Baton him down the hatches! Hoist the mast! ARRRR! Every man for hi''self!','0','0','7','0','0','threshwackonator SAY_AT_CLOSE'),
 
-('-1000327','Ok, $n, let''s go find where I left that mysterious fossil. Follow me!','0','0','7','0','925','remtravel SAY_REM_START'),
-('-1000328','Now where did I put that mysterious fossil? Ah, maybe up there...','0','0','7','0','926','remtravel SAY_REM_RAMP1_1'),
-('-1000329','Hrm, nothing up here.','0','0','7','0','927','remtravel SAY_REM_RAMP1_2'),
-('-1000330','No mysterious fossil here... Ah, but my copy of Green Hills of Stranglethorn.  What a good book!','0','0','7','0','928','remtravel SAY_REM_BOOK'),
-('-1000331','I bet you I left it in the tent!','0','0','7','0','929','remtravel SAY_REM_TENT1_1'),
-('-1000332','Oh wait, that''s Hollee''s tent... and it''s empty.','0','0','7','0','930','remtravel SAY_REM_TENT1_2'),
-('-1000333','Interesting... I hadn''t noticed this earlier...','0','0','7','0','931','remtravel SAY_REM_MOSS'),
-('-1000334','%s inspects the ancient, mossy stone.','0','2','7','0','932','remtravel EMOTE_REM_MOSS'),
-('-1000335','Oh wait! I''m supposed to be looking for that mysterious fossil!','0','0','7','0','933','remtravel SAY_REM_MOSS_PROGRESS'),
-('-1000336','Nope, didn''t leave the fossil back here!','0','0','7','0','935','remtravel SAY_REM_PROGRESS'),
-('-1000337','Ah, I remember now! I gave the mysterious fossil to Hollee! Check with her.','0','0','7','0','936','remtravel SAY_REM_REMEMBER'),
-('-1000338','%s goes back to work, oblivious to everything around him.','0','2','7','0','937','remtravel EMOTE_REM_END'),
-('-1000339','Something tells me this $r wants the mysterious fossil too. Help!','0','0','7','0','0','remtravel SAY_REM_AGGRO'),
-
-('-1000340','%s howls in delight at the sight of his lunch!','0','2','0','0','0','kyle EMOTE_SEE_LUNCH'),
-('-1000341','%s eats his lunch.','0','2','0','0','0','kyle EMOTE_EAT_LUNCH'),
-('-1000342','%s thanks you with a special dance.','0','2','0','0','0','kyle EMOTE_DANCE'),
+('-1000340','%s howls in delight at the sight of his lunch!','0','2','0','0','22068','kyle EMOTE_SEE_LUNCH'),
+('-1000341','%s eats his lunch.','0','2','0','0','22069','kyle EMOTE_EAT_LUNCH'),
+('-1000342','%s thanks you with a special dance.','0','2','0','0','22070','kyle EMOTE_DANCE'),
 
 ('-1000343','Is the way clear? Let''s get out while we can, $N.','0','0','0','0','0','kayra SAY_START'),
 ('-1000344','Looks like we won''t get away so easy. Get ready!','0','0','0','0','0','kayra SAY_AMBUSH1'),
@@ -1215,17 +1201,6 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 
 ('-1000499','Puny $r wanna fight %s? Me beat you! Me boss here!','0','0','1','0','0','morokk SAY_MOR_CHALLENGE'),
 ('-1000500','Me scared! Me run now!','0','1','0','0','1523','morokk SAY_MOR_SCARED'),
-
-('-1000501','Are you sure that you are ready? If we do not have a group of your allies to aid us, we will surely fail.','0','0','1','0','8566','muglash SAY_MUG_START1'),
-('-1000502','This will be a tough fight, $N. Follow me closely!','0','0','1','0','8555','muglash SAY_MUG_START2'),
-('-1000503','This is the brazier, $N. Put it out. Vorsha is a beast, worthy of praise from no one!','0','0','1','0','8556','muglash SAY_MUG_BRAZIER'),
-('-1000504','Now we must wait. It won''t be long before the naga realize what we have done.','0','0','1','0','0','muglash SAY_MUG_BRAZIER_WAIT'),
-('-1000505','Be on your guard, $N!','0','0','1','0','8412','muglash SAY_MUG_ON_GUARD'),
-('-1000506','Perhaps we will get a moment to rest. But I will not give up until we have faced off against Vorsha!','0','0','1','0','8413','muglash SAY_MUG_REST'),
-('-1000507','We have done it!','0','0','1','0','0','muglash SAY_MUG_DONE'),
-('-1000508','You have my deepest gratitude. I thank you.','0','0','1','0','0','muglash SAY_MUG_GRATITUDE'),
-('-1000509','I am going to patrol the area for a while longer and ensure that things are truly safe.','0','0','1','0','8564','muglash SAY_MUG_PATROL'),
-('-1000510','Please return to Zoram''gar and report our success to the Warsong Runner.','0','0','1','0','8565','muglash SAY_MUG_RETURN'),
 
 ('-1000511','Aright, listen up! Form a circle around me and move out!','0','0','0','0','0','letoll SAY_LE_START'),
 ('-1000512','Aright, $r, just keep us safe from harm while we work. We''ll pay you when we return.','0','0','0','0','0','letoll SAY_LE_KEEP_SAFE'),
@@ -1432,13 +1407,6 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 ('-1000786','Hey Hornizz!  I''m back!  And there are some people behind me who helped me out of a jam.','0','0','0','1','7550','melizza SAY_MELIZZA_1'),
 ('-1000787','We''re going to have to scratch the Maraudines off our list.  Too hard to work with...','0','0','0','1','7551','melizza SAY_MELIZZA_2'),
 ('-1000788','Well, I''m off to the Gelkis.  They''re not as dumb as the Maraudines, but they''re more reasonable.','0','0','0','3','7552','melizza SAY_MELIZZA_3'),
-
-('-1000789','Well, now or never I suppose. Remember, once we get to the road safety, return to Terenthis to let him know we escaped.','0','0','0','0','0','volcor SAY_START'),
-('-1000790','We made it, my friend. Remember to find Terenthis and let him know we''re safe. Thank you again.','0','0','0','0','1243','volcor SAY_END'),
-('-1000791','Here they come!','0','0','0','0','1250','volcor SAY_FIRST_AMBUSH'),
-('-1000792','We can overcome these foul creatures!','0','0','0','0','1251','volcor SAY_AGGRO_1'),
-('-1000793','We shall earn our deaths at the very least!','0','0','0','0','1252','volcor SAY_AGGRO_2'),
-('-1000794','Don''t give up! Fight to the death!','0','0','0','0','1253','volcor SAY_AGGRO_3'),
 
 ('-1000795','Ow!  Ok, I''ll get back to work, $N!','0','0','1','0','5774','Lazy Peon SAY_PEON_AWOKEN'),
 ('-1000796','REUSE_ME','0','0','0','0','0','REUSE_ME'),
@@ -2283,9 +2251,6 @@ INSERT INTO script_texts (entry,content_default,sound,type,language,emote,broadc
 ('-1531009','I sentence you to death!','8647','1','0','0','11443','sartura SAY_SLAY'),
 ('-1531010','I serve to the last!','8648','1','0','0','11444','sartura SAY_DEATH'),
 
-('-1531011','%s is weakened!','0','2','0','0','11476','cthun EMOTE_WEAKENED'),
-
-('-1531012','The massive floating eyeball in the center of the chamber turns its gaze upon you. You stand before a god.','0','7','0','0','11700','eye cthun EMOTE_INTRO'),
 ('-1531013','Only flesh and bone. Mortals are such easy prey...','0','1','0','1','11702','veklor SAY_INTRO_1'),
 ('-1531014','Where are your manners, brother. Let us properly welcome our guests.','0','1','0','5','11706','veknilash SAY_INTRO_2'),
 ('-1531015','There will be pain...','0','1','0','0','11707','veklor SAY_INTRO_3'),
@@ -2780,49 +2745,6 @@ INSERT INTO script_waypoint (Entry, PathId, Point, PositionX, PositionY, Positio
 (2768,0,19,-2077.73,-2091.17,9.49,0,0,0,''),
 (2768,0,20,-2066.41,-2086.21,8.97,0,6000,0,''),
 (2768,0,21,-2066.41,-2086.21,8.97,0,2000,0,''),
-(2917,0,1,4675.81,598.615,17.6457,0,0,0,'SAY_REM_START'),
-(2917,0,2,4672.84,599.325,16.4176,0,0,0,''),
-(2917,0,3,4663.45,607.43,10.4948,0,0,0,''),
-(2917,0,4,4655.97,613.761,8.52327,0,0,0,''),
-(2917,0,5,4640.8,623.999,8.37705,0,0,0,''),
-(2917,0,6,4631.68,630.801,6.415,0,5000,0,'SAY_REM_RAMP1_1'),
-(2917,0,7,4633.53,632.476,6.50983,0,0,0,'ambush'),
-(2917,0,8,4639.41,637.121,13.3381,0,0,0,''),
-(2917,0,9,4642.35,637.668,13.4374,0,0,0,''),
-(2917,0,10,4645.08,634.464,13.4372,0,5000,0,'SAY_REM_RAMP1_2'),
-(2917,0,11,4642.35,637.585,13.4352,0,0,0,''),
-(2917,0,12,4639.63,637.234,13.3398,0,0,0,''),
-(2917,0,13,4633.36,632.462,6.48844,0,0,0,''),
-(2917,0,14,4624.71,631.724,6.26403,0,0,0,''),
-(2917,0,15,4623.53,629.719,6.20134,0,5000,0,'SAY_REM_BOOK'),
-(2917,0,16,4623.45,630.37,6.21894,0,0,0,'SAY_REM_TENT1_1'),
-(2917,0,17,4622.62,637.222,6.31285,0,0,0,'ambush'),
-(2917,0,18,4619.76,637.386,6.31205,0,5000,0,'SAY_REM_TENT1_2'),
-(2917,0,19,4620.03,637.368,6.31205,0,0,0,''),
-(2917,0,20,4624.15,637.56,6.3139,0,0,0,''),
-(2917,0,21,4622.97,634.016,6.29498,0,0,0,''),
-(2917,0,22,4616.93,630.303,6.23919,0,0,0,''),
-(2917,0,23,4614.55,616.983,5.68764,0,0,0,''),
-(2917,0,24,4610.28,610.029,5.44254,0,0,0,''),
-(2917,0,25,4601.15,604.112,2.05486,0,0,0,''),
-(2917,0,26,4589.62,597.686,1.05715,0,0,0,''),
-(2917,0,27,4577.59,592.146,1.12019,0,0,0,'SAY_REM_MOSS (?)'),
-(2917,0,28,4569.85,592.177,1.26087,0,5000,0,'EMOTE_REM_MOSS (?)'),
-(2917,0,29,4568.79,590.871,1.21134,0,3000,0,'SAY_REM_MOSS_PROGRESS (?)'),
-(2917,0,30,4566.72,564.078,1.34308,0,0,0,'ambush'),
-(2917,0,31,4568.27,551.958,5.0042,0,0,0,''),
-(2917,0,32,4566.73,551.558,5.42631,0,5000,0,'SAY_REM_PROGRESS'),
-(2917,0,33,4566.74,560.768,1.70326,0,0,0,''),
-(2917,0,34,4573.92,582.566,0.749801,0,0,0,''),
-(2917,0,35,4594.21,598.533,1.03406,0,0,0,''),
-(2917,0,36,4601.19,604.283,2.06015,0,0,0,''),
-(2917,0,37,4609.54,610.845,5.40222,0,0,0,''),
-(2917,0,38,4624.8,618.076,5.85154,0,0,0,''),
-(2917,0,39,4632.41,623.778,7.28624,0,0,0,''),
-(2917,0,40,4645.92,621.984,8.57997,0,0,0,''),
-(2917,0,41,4658.67,611.093,8.89175,0,0,0,''),
-(2917,0,42,4671.92,599.752,16.0124,0,5000,0,'SAY_REM_REMEMBER'),
-(2917,0,43,4676.98,600.65,17.8257,0,5000,0,'EMOTE_REM_END'),
 (3439,0,1,1105.09,-3101.25,82.706,0,1000,0,'SAY_STARTUP1'),
 (3439,0,2,1103.2,-3104.35,83.113,0,1000,0,''),
 (3439,0,3,1107.82,-3106.5,82.739,0,1000,0,''),
@@ -2923,30 +2845,6 @@ INSERT INTO script_waypoint (Entry, PathId, Point, PositionX, PositionY, Positio
 (3584,0,19,4566.09,303.127,55.0396,0,0,0,''),
 (3584,0,20,4561.65,295.456,57.0984,0,4000,0,'SAY_THERYLUNE_FINISH'),
 (3584,0,21,4551.03,293.333,57.1534,0,2000,0,''),
-(3692,0,1,4608.43,-6.32,69.74,0,1000,0,'stand up'),
-(3692,0,2,4608.43,-6.32,69.74,0,4000,0,'SAY_START'),
-(3692,0,3,4604.54,-5.17,69.51,0,0,0,''),
-(3692,0,4,4604.26,-2.02,69.42,0,0,0,''),
-(3692,0,5,4607.75,3.79,70.13,0,1000,0,'first ambush'),
-(3692,0,6,4607.75,3.79,70.13,0,0,0,'SAY_FIRST_AMBUSH'),
-(3692,0,7,4619.77,27.47,70.4,0,0,0,''),
-(3692,0,8,4626.28,42.46,68.75,0,0,0,''),
-(3692,0,9,4633.13,51.17,67.4,0,0,0,''),
-(3692,0,10,4639.67,79.03,61.74,0,0,0,''),
-(3692,0,11,4647.54,94.25,59.92,0,0,0,'second ambush'),
-(3692,0,12,4682.08,113.47,54.83,0,0,0,''),
-(3692,0,13,4705.28,137.81,53.36,0,0,0,'last ambush'),
-(3692,0,14,4730.3,158.76,52.33,0,0,0,''),
-(3692,0,15,4756.47,195.65,53.61,0,10000,0,'SAY_END'),
-(3692,0,16,4608.43,-6.32,69.74,0,1000,0,'bow'),
-(3692,0,17,4608.43,-6.32,69.74,0,4000,0,'SAY_ESCAPE'),
-(3692,0,18,4608.43,-6.32,69.74,0,4000,0,'SPELL_MOONSTALKER_FORM'),
-(3692,0,19,4604.54,-5.17,69.51,0,0,0,''),
-(3692,0,20,4604.26,-2.02,69.42,0,0,0,''),
-(3692,0,21,4607.75,3.79,70.13,0,0,0,''),
-(3692,0,22,4607.75,3.79,70.13,0,0,0,''),
-(3692,0,23,4619.77,27.47,70.4,0,0,0,''),
-(3692,0,24,4640.33,33.74,68.22,0,0,0,'quest complete'),
 (3849,0,1,-250.923,2116.26,81.179,0,0,0,'SAY_FREE_AD'),
 (3849,0,2,-255.049,2119.39,81.179,0,0,0,''),
 (3849,0,3,-254.129,2123.45,81.179,0,0,0,''),
@@ -3941,36 +3839,6 @@ INSERT INTO script_waypoint (Entry, PathId, Point, PositionX, PositionY, Positio
 (12580,0,25,-8455.95,351.225,120.88,0,0,0,''),
 (12580,0,26,-8446.87,339.904,121.33,5.3737,1000,0,'SAY_WINDSOR_KEEP_1'),
 (12580,0,27,-8446.87,339.904,121.33,0,10000,0,''),
-(12717,0,1,3346.25,1007.88,3.59,0,0,0,'SAY_MUG_START2'),
-(12717,0,2,3367.39,1011.51,3.72,0,0,0,''),
-(12717,0,3,3418.64,1013.96,2.905,0,0,0,''),
-(12717,0,4,3426.84,1015.1,3.449,0,0,0,''),
-(12717,0,5,3437.03,1020.79,2.742,0,0,0,''),
-(12717,0,6,3460.56,1024.26,1.353,0,0,0,''),
-(12717,0,7,3479.87,1037.96,1.023,0,0,0,''),
-(12717,0,8,3490.53,1043.35,3.338,0,0,0,''),
-(12717,0,9,3504.28,1047.77,8.205,0,0,0,''),
-(12717,0,10,3510.73,1049.79,12.143,0,0,0,''),
-(12717,0,11,3514.41,1051.17,13.235,0,0,0,''),
-(12717,0,12,3516.94,1052.91,12.918,0,0,0,''),
-(12717,0,13,3523.64,1056.3,7.563,0,0,0,''),
-(12717,0,14,3531.94,1059.86,6.175,0,0,0,''),
-(12717,0,15,3535.48,1069.96,1.697,0,0,0,''),
-(12717,0,16,3546.98,1093.49,0.68,0,0,0,''),
-(12717,0,17,3549.73,1101.88,-1.123,0,0,0,''),
-(12717,0,18,3555.14,1116.99,-4.326,0,0,0,''),
-(12717,0,19,3571.94,1132.18,-0.634,0,0,0,''),
-(12717,0,20,3574.28,1137.58,3.684,0,0,0,''),
-(12717,0,21,3579.31,1137.25,8.205,0,0,0,''),
-(12717,0,22,3590.22,1143.65,8.291,0,0,0,''),
-(12717,0,23,3595.97,1145.83,6.773,0,0,0,''),
-(12717,0,24,3603.65,1146.92,9.763,0,0,0,''),
-(12717,0,25,3607.08,1146.01,10.692,0,5000,0,'SAY_MUG_BRAZIER'),
-(12717,0,26,3614.52,1142.63,10.248,0,0,0,''),
-(12717,0,27,3616.66,1140.84,10.682,0,3000,0,'SAY_MUG_PATROL'),
-(12717,0,28,3621.08,1138.11,10.369,0,0,0,'SAY_MUG_RETURN'),
-(12717,0,29,3615.48,1145.53,9.614,0,0,0,''),
-(12717,0,30,3607.19,1152.72,8.871,0,0,0,''),
 (12818,0,1,3347.25,-694.701,159.926,0,0,0,''),
 (12818,0,2,3341.53,-694.726,161.125,0,1000,0,''),
 (12818,0,3,3338.35,-686.088,163.444,0,0,0,''),

@@ -30,13 +30,12 @@ CreatureAI::CreatureAI(Creature* creature, uint32 combatActions) :
     m_creature(creature),
     m_deathPrevented(false), m_followAngle(0.f), m_followDist(0.f)
 {
-    m_dismountOnAggro = !(m_creature->GetCreatureInfo()->CreatureTypeFlags & CREATURE_TYPEFLAGS_MOUNTED_COMBAT);
+    m_dismountOnAggro = !(m_creature->GetCreatureInfo()->HasFlag(CreatureTypeFlags::ALLOW_MOUNTED_COMBAT));
     SetMeleeEnabled(!(m_creature->GetSettings().HasFlag(CreatureStaticFlags::NO_MELEE_FLEE)
-        || m_creature->GetSettings().HasFlag(CreatureStaticFlags4::NO_MELEE_APPROACH)));
+        || m_creature->GetSettings().HasFlag(CreatureStaticFlags4::NO_MELEE_APPROACH) || m_creature->GetCreatureInfo()->ExtraFlags & CREATURE_EXTRA_FLAG_NO_MELEE));
     if (m_creature->GetSettings().HasFlag(CreatureStaticFlags::SESSILE))
         SetAIImmobilizedState(true);
 
-    SetMeleeEnabled(!(m_creature->GetCreatureInfo()->ExtraFlags & CREATURE_EXTRA_FLAG_NO_MELEE));
     if (m_creature->IsNoAggroOnSight())
         SetReactState(REACT_DEFENSIVE);
     if (m_creature->GetSettings().HasFlag(CreatureStaticFlags2::SPAWN_DEFENSIVE))
@@ -49,7 +48,6 @@ CreatureAI::CreatureAI(Creature* creature, uint32 combatActions) :
 
 void CreatureAI::Reset()
 {
-
     m_currentRangedMode = m_rangedMode;
     m_attackDistance = m_chaseDistance;
 }
@@ -57,12 +55,6 @@ void CreatureAI::Reset()
 void CreatureAI::EnterCombat(Unit* enemy)
 {
     UnitAI::EnterCombat(enemy);
-    // TODO: Monitor this condition to see if it conflicts with any pets
-    if (m_creature->GetSettings().HasFlag(CreatureStaticFlags::NO_MELEE_FLEE) && !m_creature->IsRooted() && !m_creature->IsInPanic() && enemy && enemy->IsPlayerControlled())
-    {
-        DoFlee(30000);
-        SetAIOrder(ORDER_CRITTER_FLEE); // mark as critter flee for custom handling
-    }
     if (enemy && (m_creature->IsGuard() || m_creature->IsCivilian()))
     {
         // Send Zone Under Attack message to the LocalDefense and WorldDefense Channels
@@ -71,8 +63,27 @@ void CreatureAI::EnterCombat(Unit* enemy)
     }
 }
 
+void CreatureAI::EnterEvadeMode()
+{
+    UnitAI::EnterEvadeMode();
+    ResetTimersOnEvade();
+    Reset();
+}
+
 void CreatureAI::AttackStart(Unit* who)
 {
+    if (m_creature->GetSettings().HasFlag(CreatureStaticFlags::COMBAT_PING))
+    {
+        if (Player* owner = dynamic_cast<Player*>(m_creature->GetSpawner()))
+        {
+            WorldPacket data(MSG_MINIMAP_PING, (8 + 4 + 4));
+            data << m_creature->GetObjectGuid();
+            data << m_creature->GetPositionX();
+            data << m_creature->GetPositionY();
+            owner->SendDirectMessage(data);
+        }
+    }
+
     if (!who || HasReactState(REACT_PASSIVE))
         return;
 
@@ -108,6 +119,12 @@ void CreatureAI::JustReachedHome()
     if (m_dismountOnAggro)
         if (CreatureInfo const* mountInfo = m_creature->GetMountInfo())
             m_creature->Mount(Creature::ChooseDisplayId(mountInfo));
+}
+
+void CreatureAI::JustRespawned()
+{
+    ResetAllTimers();
+    Reset();
 }
 
 void CreatureAI::SetDeathPrevention(bool state)

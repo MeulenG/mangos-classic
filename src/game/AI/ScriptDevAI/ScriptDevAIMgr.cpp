@@ -410,46 +410,6 @@ bool ScriptDevAIMgr::OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectInd
     return pTempScript->pEffectDummyNPC(pCaster, spellId, effIndex, pTarget, originalCasterGuid);
 }
 
-bool ScriptDevAIMgr::OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, GameObject* pTarget, ObjectGuid originalCasterGuid)
-{
-    Script* pTempScript = GetScript(pTarget->GetGOInfo()->ScriptId);
-
-    if (!pTempScript || !pTempScript->pEffectDummyGO)
-        return false;
-
-    return pTempScript->pEffectDummyGO(pCaster, spellId, effIndex, pTarget, originalCasterGuid);
-}
-
-bool ScriptDevAIMgr::OnEffectDummy(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Item* pTarget, ObjectGuid originalCasterGuid)
-{
-    Script* pTempScript = GetScript(pTarget->GetProto()->ScriptId);
-
-    if (!pTempScript || !pTempScript->pEffectDummyItem)
-        return false;
-
-    return pTempScript->pEffectDummyItem(pCaster, spellId, effIndex, pTarget, originalCasterGuid);
-}
-
-bool ScriptDevAIMgr::OnEffectScriptEffect(Unit* pCaster, uint32 spellId, SpellEffectIndex effIndex, Creature* pTarget, ObjectGuid originalCasterGuid)
-{
-    Script* pTempScript = GetScript(pTarget->GetScriptId());
-
-    if (!pTempScript || !pTempScript->pEffectScriptEffectNPC)
-        return false;
-
-    return pTempScript->pEffectScriptEffectNPC(pCaster, spellId, effIndex, pTarget, originalCasterGuid);
-}
-
-bool ScriptDevAIMgr::OnAuraDummy(Aura const* pAura, bool bApply)
-{
-    Script* pTempScript = GetScript(((Creature*)pAura->GetTarget())->GetScriptId());
-
-    if (!pTempScript || !pTempScript->pEffectAuraDummy)
-        return false;
-
-    return pTempScript->pEffectAuraDummy(pAura, bApply);
-}
-
 InstanceData* ScriptDevAIMgr::CreateInstanceData(Map* pMap)
 {
     Script* pTempScript = GetScript(pMap->GetScriptId());

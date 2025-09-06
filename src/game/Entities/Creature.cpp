@@ -141,7 +141,7 @@ Creature::Creature(CreatureSubtype subtype) : Unit(),
     m_lootStatus(CREATURE_LOOT_STATUS_NONE),
     m_corpseAccelerationDecayDelay(MINIMUM_LOOTING_TIME),
     m_respawnTime(0), m_respawnDelay(25), m_respawnOverriden(false), m_respawnOverrideOnce(false), m_corpseDelay(60), m_canAggro(false),
-    m_respawnradius(5.0f), m_interactionPauseTimer(0), m_subtype(subtype), m_defaultMovementType(IDLE_MOTION_TYPE),
+    m_respawnradius(5.0f), m_checkForHelp(true), m_interactionPauseTimer(0), m_subtype(subtype), m_defaultMovementType(IDLE_MOTION_TYPE),
     m_equipmentId(0), m_detectionRange(20.f), m_AlreadyCallAssistance(false), m_canCallForAssistance(true),
     m_temporaryFactionFlags(TEMPFACTION_NONE),
     m_originalEntry(0), m_gameEventVendorId(0),
@@ -149,8 +149,9 @@ Creature::Creature(CreatureSubtype subtype) : Unit(),
     m_isInvisible(false), m_ignoreMMAP(false), m_forceAttackingCapability(false),
     m_settings(this),
     m_countSpawns(false),
-    m_creatureGroup(nullptr), m_imposedCooldown(false),
-    m_creatureInfo(nullptr), m_mountInfo(nullptr)
+    m_creatureGroup(nullptr), m_imposedCooldown(false), m_healthMultiplier(1.f),
+    m_creatureInfo(nullptr), m_mountInfo(nullptr),
+    m_combatOnlyStealth(false)
 {
     m_valuesCount = UNIT_END;
 
@@ -401,8 +402,28 @@ bool Creature::InitEntry(uint32 Entry, CreatureData const* data /*=nullptr*/, Ga
     }
     else if (!data || (data->spawnTemplate->equipmentId == -1))
     {
-        // use default from the template
-        LoadEquipment(cinfo->EquipmentTemplateId, true);
+        if (cinfo->EquipmentTemplateId == 0)
+            LoadEquipment(normalInfo->EquipmentTemplateId, true); // use default from normal template if diff does not have any
+        else
+            LoadEquipment(cinfo->EquipmentTemplateId); // else use from diff template
+
+        if (GetSettings().HasFlag(CreatureStaticFlags::CAN_WIELD_LOOT)) // override from loot if any
+        {
+            PrepareBodyLootState(nullptr);
+            if (m_loot != nullptr)
+            {
+                auto [mh, oh, ranged] = m_loot->GetQualifiedWeapons();
+
+                if (mh != 0)
+                    SetVirtualItem(VIRTUAL_ITEM_SLOT_0, mh);
+
+                if (oh != 0)
+                    SetVirtualItem(VIRTUAL_ITEM_SLOT_1, oh);
+
+                if (ranged != 0)
+                    SetVirtualItem(VIRTUAL_ITEM_SLOT_2, ranged);
+            }            
+        }
     }
     else if (data)
     {
@@ -434,6 +455,8 @@ bool Creature::InitEntry(uint32 Entry, CreatureData const* data /*=nullptr*/, Ga
             SetWalk(false);
         if (data->spawnTemplate->IsHovering())
             SetHover(true);
+        if (data->spawnTemplate->IsGravityDisabled())
+            SetLevitate(true);
         m_defaultMovementType = MovementGeneratorType(data->movementType);
     }
     else
@@ -596,10 +619,7 @@ bool Creature::UpdateEntry(uint32 Entry, const CreatureData* data /*=nullptr*/, 
         SetSpellList(Entry * 100 + 0);
     UpdateImmunitiesSet(0);
     if (IsCritter()) // meant to be also settable per creature immunity set
-    {
-        SetAOEImmune(true);
         SetChainImmune(true);
-    }
 
     // if eventData set then event active and need apply spell_start
     if (eventData)
@@ -1055,8 +1075,17 @@ bool Creature::CanTrainAndResetTalentsOf(Player* pPlayer) const
            && pPlayer->getClass() == GetCreatureInfo()->TrainerClass;
 }
 
-void Creature::PrepareBodyLootState()
+bool Creature::isInvisibleForAlive() const
 {
+    return GetSettings().HasFlag(CreatureStaticFlags::VISIBLE_TO_GHOSTS);
+}
+
+void Creature::PrepareBodyLootState(Unit* killer)
+{
+    // if can weild loot - already generated on spawn
+    if (GetSettings().HasFlag(CreatureStaticFlags::CAN_WIELD_LOOT) && m_loot != nullptr && m_loot->GetLootType() == LOOT_CORPSE)
+        return;
+
     // loot may already exist (pickpocket case)
     delete m_loot;
     m_loot = nullptr;
@@ -1065,10 +1094,14 @@ void Creature::PrepareBodyLootState()
         SetLootStatus(CREATURE_LOOT_STATUS_LOOTED);
     else
     {
-        Player* killer = GetLootRecipient();
+        Player* looter = nullptr;
+        if (GetSettings().HasFlag(CreatureStaticFlags3::CAN_BE_MULTITAPPED))
+            looter = dynamic_cast<Player*>(killer);
+        else
+            looter = GetLootRecipient();
 
-        if (killer)
-            m_loot = new Loot(killer, this, LOOT_CORPSE);
+        if (looter || GetSettings().HasFlag(CreatureStaticFlags::CAN_WIELD_LOOT))
+            m_loot = new Loot(looter, this, LOOT_CORPSE);
     }
 
     if (m_lootStatus == CREATURE_LOOT_STATUS_LOOTED && !HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE))
@@ -1144,6 +1177,9 @@ void Creature::SetLootRecipient(Unit* unit)
         ForceValuesUpdateAtIndex(UNIT_DYNAMIC_FLAGS);       // needed to be sure tapping status is updated
         return;
     }
+
+    if (GetSettings().HasFlag(CreatureStaticFlags3::CAN_BE_MULTITAPPED))
+        return;
 
     Player* player = unit->GetBeneficiaryPlayer();
     if (!player)                                            // normal creature, no player involved
@@ -1448,7 +1484,7 @@ void Creature::SelectLevel(uint32 forcedLevel /*= USE_DEFAULT_DATABASE_LEVEL*/)
     SetCreateStat(STAT_SPIRIT, spirit);
 
     // multipliers
-    SetModifierValue(UNIT_MOD_HEALTH, TOTAL_PCT, healthMultiplier);
+    m_healthMultiplier = healthMultiplier;
     SetModifierValue(UnitMods(UNIT_MOD_MANA + (int)GetPowerType()), TOTAL_PCT, powerMultiplier);
 
     UpdateAllStats();
@@ -1836,7 +1872,9 @@ void Creature::SetDeathState(DeathState s)
     {
         if (!m_respawnOverriden)
         {
-            if (CreatureData const* data = sObjectMgr.GetCreatureData(GetDbGuid()))
+            if (GetCreatureGroup() && GetCreatureGroup()->IsRespawnOverriden())
+                m_respawnDelay = GetCreatureGroup()->GetRandomRespawnTime();
+            else if (CreatureData const* data = sObjectMgr.GetCreatureData(GetDbGuid()))
                 m_respawnDelay = data->GetRandomRespawnTime();
         }
         else if (m_respawnOverrideOnce)
@@ -2114,7 +2152,7 @@ bool Creature::IsVisibleInGridForPlayer(Player* pl) const
     }
 
     // Dead player can see ghosts
-    if (GetCreatureInfo()->CreatureTypeFlags & CREATURE_TYPEFLAGS_GHOST_VISIBLE)
+    if (GetCreatureInfo()->HasFlag(CreatureTypeFlags::VISIBLE_TO_GHOSTS))
         return true;
 
     // and not see any other
@@ -2918,7 +2956,7 @@ bool Creature::IsNoWoundedSlowdown() const
 
 bool Creature::IsSlowedInCombat() const
 {
-    return !IsNoWoundedSlowdown() && HasAuraState(AURA_STATE_HEALTHLESS_20_PERCENT);
+    return !IsNoWoundedSlowdown() && GetHealthPercent() < 30.f;
 }
 
 void Creature::SetNoWeaponSkillGain(bool state)

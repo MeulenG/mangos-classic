@@ -2120,6 +2120,8 @@ Creature* WorldObject::SummonCreature(TempSpawnSettings settings, Map* map)
                 //make hover stuff dont fall @killerwife probably dont need all those flags
                 //creature->m_movementInfo.AddMovementFlag(MovementFlags(MOVEFLAG_FLYING | MOVEFLAG_SWIMMING | MOVEFLAG_CAN_FLY | MOVEFLAG_ROOT));
             }
+            if (templateData->IsGravityDisabled())
+                creature->SetLevitate(true);
             relayId = templateData->relayId;
             if (templateData->stringId)
                 creature->SetStringId(templateData->stringId, true);
@@ -2441,22 +2443,22 @@ void WorldObject::HandlePlayPacketSettings(WorldPacket& msg, PlayPacketParameter
 {
     switch (parameters.setting)
     {
-        case PLAY_SET:
+        case PlayPacketSettings::SET:
             SendMessageToSet(msg, true);
             break;
-        case PLAY_TARGET:
+        case PlayPacketSettings::TARGET:
             if (Player const* target = parameters.target.target)
                 target->SendDirectMessage(msg);
             break;
-        case PLAY_MAP:
+        case PlayPacketSettings::MAP:
             if (IsInWorld())
                 GetMap()->MessageMapBroadcast(this, msg);
             break;
-        case PLAY_ZONE:
+        case PlayPacketSettings::ZONE:
             if (IsInWorld())
                 GetMap()->MessageMapBroadcastZone(this, msg, parameters.areaOrZone.id);
             break;
-        case PLAY_AREA:
+        case PlayPacketSettings::AREA:
             if (IsInWorld())
                 GetMap()->MessageMapBroadcastArea(this, msg, parameters.areaOrZone.id);
             break;
@@ -2923,8 +2925,8 @@ int32 WorldObject::CalculateSpellEffectValue(Unit const* target, SpellEntry cons
     int32 randomPoints = spellProto->EffectDieSides[effect_index];
     if (unitCaster && basePointsPerLevel != 0.f)
     {
-        int32 level = int32(unitCaster->GetLevel());
-        if (level > (int32)spellProto->maxLevel&& spellProto->maxLevel > 0)
+        int32 level = int32(unitCaster->GetSpellRank(spellProto) / 5);
+        if (level > (int32)spellProto->maxLevel && spellProto->maxLevel > 0)
             level = (int32)spellProto->maxLevel;
         else if (level < (int32)spellProto->baseLevel)
             level = (int32)spellProto->baseLevel;

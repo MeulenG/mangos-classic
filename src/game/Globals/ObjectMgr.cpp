@@ -46,6 +46,12 @@
 #include "Grids/CellImpl.h"
 #include "Server/DBCStores.h"
 #include "Globals/ObjectAccessor.h"
+#include "OutdoorPvP/OutdoorPvPMgr.h"
+#include "OutdoorPvP/OutdoorPvP.h"
+#include "World/WorldState.h"
+
+#include "MotionGenerators/MoveMap.h"
+
 #include "Entities/ItemEnchantmentMgr.h"
 #include "Loot/LootMgr.h"
 #include "World/WorldState.h"
@@ -566,6 +572,8 @@ void ObjectMgr::LoadCreatureTemplates()
             sLog.outErrorDb("Table creature_template entry %u StringID2 %u does not exist. Setting to 0.", cInfo->Entry, cInfo->StringID2);
             const_cast<CreatureInfo*>(cInfo)->StringID2 = 0;
         }
+        if (cInfo->StaticFlags || cInfo->StaticFlags2 || cInfo->StaticFlags3 || cInfo->StaticFlags4)
+            const_cast<CreatureInfo*>(cInfo)->TypeFlags = GetTypeFlagsFromStaticFlags(CreatureTypeFlags(cInfo->TypeFlags), cInfo->StaticFlags, cInfo->StaticFlags2, cInfo->StaticFlags3, cInfo->StaticFlags4);
     }
 
     sLog.outString(">> Loaded %u creature definitions", sCreatureStorage.GetRecordCount());
@@ -788,6 +796,75 @@ CreatureClassLvlStats const* ObjectMgr::GetCreatureClassLvlStats(uint32 level, u
         return cCLS;
 
     return nullptr;
+}
+
+uint32 ObjectMgr::GetTypeFlagsFromStaticFlags(CreatureTypeFlags typeFlags, uint32 staticFlags1, uint32 staticFlags2, uint32 staticFlags3, uint32 staticFlags4) const
+{
+    if (staticFlags1 & uint32(CreatureStaticFlags::TAMEABLE))
+        typeFlags |= CreatureTypeFlags::TAMEABLE;
+    if (staticFlags1 & uint32(CreatureStaticFlags::BOSS_MOB))
+        typeFlags |= CreatureTypeFlags::BOSS_MOB;
+    if (staticFlags1 & uint32(CreatureStaticFlags::VISIBLE_TO_GHOSTS))
+        typeFlags |= CreatureTypeFlags::VISIBLE_TO_GHOSTS;
+    if (staticFlags1 & uint32(CreatureStaticFlags::NO_FACTION_TOOLTIP))
+        typeFlags |= CreatureTypeFlags::NO_FACTION_TOOLTIP;
+    if (staticFlags1 & uint32(CreatureStaticFlags::DO_NOT_PLAY_WOUND_ANIM))
+        typeFlags |= CreatureTypeFlags::DO_NOT_PLAY_WOUND_ANIM;
+    if (staticFlags1 & uint32(CreatureStaticFlags::MORE_AUDIBLE))
+        typeFlags |= CreatureTypeFlags::MORE_AUDIBLE;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::SPELL_ATTACKABLE))
+        typeFlags |= CreatureTypeFlags::SPELL_ATTACKABLE;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::INTERACT_WHILE_DEAD))
+        typeFlags |= CreatureTypeFlags::INTERACT_WHILE_DEAD;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::SKIN_WITH_HERBALISM))
+        typeFlags |= CreatureTypeFlags::SKIN_WITH_HERBALISM;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::SKIN_WITH_MINING))
+        typeFlags |= CreatureTypeFlags::SKIN_WITH_MINING;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::ALLOW_MOUNTED_COMBAT))
+        typeFlags |= CreatureTypeFlags::ALLOW_MOUNTED_COMBAT;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::NO_DEATH_MESSAGE))
+        typeFlags |= CreatureTypeFlags::NO_DEATH_MESSAGE;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::CAN_ASSIST))
+        typeFlags |= CreatureTypeFlags::CAN_ASSIST;
+    if (staticFlags2 & uint32(CreatureStaticFlags2::NO_PET_BAR))
+        typeFlags |= CreatureTypeFlags::NO_PET_BAR;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::MASK_UID))
+        typeFlags |= CreatureTypeFlags::MASK_UID;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::SKIN_WITH_ENGINEERING))
+        typeFlags |= CreatureTypeFlags::SKIN_WITH_ENGINEERING;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::TAMEABLE_EXOTIC))
+        typeFlags |= CreatureTypeFlags::TAMEABLE_EXOTIC;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::NO_NAME_PLATE))
+        typeFlags |= CreatureTypeFlags::NO_NAME_PLATE;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::USE_MODEL_COLLISION_SIZE))
+        typeFlags |= CreatureTypeFlags::USE_MODEL_COLLISION_SIZE;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::ALLOW_INTERACTION_WHILE_IN_COMBAT))
+        typeFlags |= CreatureTypeFlags::ALLOW_INTERACTION_WHILE_IN_COMBAT;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::COLLIDE_WITH_MISSILES))
+        typeFlags |= CreatureTypeFlags::COLLIDE_WITH_MISSILES;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::DO_NOT_PLAY_MOUNTED_ANIMATIONS))
+        typeFlags |= CreatureTypeFlags::DO_NOT_PLAY_MOUNTED_ANIMATIONS;
+    if (staticFlags3 & uint32(CreatureStaticFlags3::LINK_ALL))
+        typeFlags |= CreatureTypeFlags::LINK_ALL;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::INTERACT_ONLY_WITH_CREATOR))
+        typeFlags |= CreatureTypeFlags::INTERACT_ONLY_WITH_CREATOR;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::DO_NOT_PLAY_UNIT_EVENT_SOUNDS))
+        typeFlags |= CreatureTypeFlags::DO_NOT_PLAY_UNIT_EVENT_SOUNDS;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::HAS_NO_SHADOW_BLOB))
+        typeFlags |= CreatureTypeFlags::HAS_NO_SHADOW_BLOB;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::TREAT_AS_RAID_UNIT_FOR_HELPFUL_SPELLS))
+        typeFlags |= CreatureTypeFlags::TREAT_AS_RAID_UNIT_FOR_HELPFUL_SPELLS;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::FORCE_GOSSIP))
+        typeFlags |= CreatureTypeFlags::FORCE_GOSSIP;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::DO_NOT_SHEATHE))
+        typeFlags |= CreatureTypeFlags::DO_NOT_SHEATHE;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::DO_NOT_TARGET_ON_INTERACTION))
+        typeFlags |= CreatureTypeFlags::DO_NOT_TARGET_ON_INTERACTION;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::DO_NOT_RENDER_OBJECT_NAME))
+        typeFlags |= CreatureTypeFlags::DO_NOT_RENDER_OBJECT_NAME;
+    if (staticFlags4 & uint32(CreatureStaticFlags4::QUEST_BOSS))
+        typeFlags |= CreatureTypeFlags::QUEST_BOSS;
+    return uint32(typeFlags);
 }
 
 CreatureImmunityVector const* ObjectMgr::GetCreatureImmunitySet(uint32 entry, uint32 setId) const
@@ -1031,7 +1108,7 @@ void ObjectMgr::LoadSpawnGroups()
     std::shared_ptr<SpawnGroupEntryContainer> newContainer = std::make_shared<SpawnGroupEntryContainer>();
     uint32 count = 0;
 
-    std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT Id, Name, Type, MaxCount, WorldState, WorldStateExpression, Flags, StringId FROM spawn_group"));
+    std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT Id, Name, Type, MaxCount, WorldState, WorldStateExpression, Flags, StringId, RespawnOverrideMin, RespawnOverrideMax FROM spawn_group"));
     if (result)
     {
         do
@@ -1090,7 +1167,11 @@ void ObjectMgr::LoadSpawnGroups()
             entry.EnabledByDefault = true;
             entry.formationEntry = nullptr;
             entry.HasChancedSpawns = false;
-            newContainer->spawnGroupMap.emplace(entry.Id, entry);
+            if (!fields[8].IsNULL())
+                entry.RespawnOverrideMin = fields[8].GetUInt32();
+            if (!fields[9].IsNULL())
+                entry.RespawnOverrideMax = fields[9].GetUInt32();
+            newContainer->spawnGroupMap.emplace(entry.Id, std::move(entry));
         } while (result->NextRow());
     }
 
@@ -1326,6 +1407,46 @@ void ObjectMgr::LoadSpawnGroups()
 
             group.LinkedGroups.push_back(linkedId);
         } while (result->NextRow());
+    }
+
+    result = WorldDatabase.Query("SELECT Id, SquadId, Guid, Entry FROM spawn_group_squad");
+    if (result)
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            uint32 Id = fields[0].GetUInt32();
+
+            uint32 squadId = fields[1].GetUInt32();
+            uint32 dbGuid = fields[2].GetUInt32();
+            uint32 entry = fields[3].GetUInt32();
+
+            auto itr = newContainer->spawnGroupMap.find(Id);
+            if (itr == newContainer->spawnGroupMap.end())
+            {
+                sLog.outErrorDb("LoadSpawnGroups: Invalid spawn_group_squad Id %u. Skipping.", Id);
+                continue;
+            }
+
+            auto& spawnGroup = itr->second;
+            if (!spawnGroup.RandomEntries.empty())
+                sLog.outErrorDb("LoadSpawnGroups: spawn_group_squad Id %u has spawn_group_entry. Will be overriden by squad", Id);
+
+            auto squadItr = std::find_if(spawnGroup.Squads.begin(), spawnGroup.Squads.end(), [squadId](const SpawnGroupSquad& obj) -> bool { return obj.SquadId == squadId; });
+
+            if (squadItr == spawnGroup.Squads.end())
+            {
+                SpawnGroupSquad squad;
+                squad.SquadId = squadId;
+                squad.GuidToEntry.emplace(dbGuid, entry);
+                spawnGroup.Squads.push_back(std::move(squad));
+            }
+            else
+            {
+                squadItr->GuidToEntry.emplace(dbGuid, entry);
+            }
+        }
+        while (result->NextRow());
     }
 
     for (auto& data : newContainer->spawnGroupMap)
@@ -5929,6 +6050,69 @@ void ObjectMgr::LoadAreatriggerLocales()
     sLog.outString();
 }
 
+void ObjectMgr::GenerateZoneAndAreaIds()
+{
+    WorldDatabase.DirectExecute("TRUNCATE creature_zone");
+    WorldDatabase.DirectExecute("TRUNCATE gameobject_zone");
+
+    std::string baseCreature = "INSERT INTO creature_zone(Guid, ZoneId, AreaId) VALUES";
+    int i = 0;
+    int total = 0;
+    std::string query = "";
+    for (auto& data : mCreatureDataMap)
+    {
+        CreatureData const& creature = data.second;
+        uint32 zoneId, areaId;
+        TerrainInfo* info = sTerrainMgr.LoadTerrain(creature.mapid);
+        MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld.GetDataPath(), creature.mapid, 0);
+        CellPair p = MaNGOS::ComputeCellPair(creature.posX, creature.posY);
+        Cell cell(p);
+        GridPair gp(cell.GridX(), cell.GridY());
+        int gx = (MAX_NUMBER_OF_GRIDS - 1) - gp.x_coord;
+        int gy = (MAX_NUMBER_OF_GRIDS - 1) - gp.y_coord;
+        info->LoadMapAndVMap(gx, gy);
+        info->GetZoneAndAreaId(zoneId, areaId, creature.posX, creature.posY, creature.posZ);
+
+        query += "(" + std::to_string(data.first) + "," + std::to_string(zoneId) + "," + std::to_string(areaId) + "),";
+        ++i; ++total;
+        if (i >= 100)
+        {
+            std::string finalQuery = baseCreature + query;
+            finalQuery[finalQuery.length() - 1] = ';';
+            WorldDatabase.DirectExecute(finalQuery.c_str());
+            query = "";
+            i = 0;
+        }
+    }
+
+    std::string baseGo = "INSERT INTO gameobject_zone(Guid, ZoneId, AreaId) VALUES";
+    for (auto& data : mGameObjectDataMap)
+    {
+        GameObjectData const& go = data.second;
+        uint32 zoneId, areaId;
+        TerrainInfo* info = sTerrainMgr.LoadTerrain(go.mapid);
+        MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld.GetDataPath(), go.mapid, 0);
+        CellPair p = MaNGOS::ComputeCellPair(go.posX, go.posY);
+        Cell cell(p);
+        GridPair gp(cell.GridX(), cell.GridY());
+        int gx = (MAX_NUMBER_OF_GRIDS - 1) - gp.x_coord;
+        int gy = (MAX_NUMBER_OF_GRIDS - 1) - gp.y_coord;
+        info->LoadMapAndVMap(gx, gy);
+        info->GetZoneAndAreaId(zoneId, areaId, go.posX, go.posY, go.posZ + 1);
+
+        query += "(" + std::to_string(data.first) + "," + std::to_string(zoneId) + "," + std::to_string(areaId) + "),";
+        ++i; ++total;
+        if (i >= 100)
+        {
+            std::string finalQuery = baseGo + query;
+            finalQuery[finalQuery.length() - 1] = ';';
+            WorldDatabase.DirectExecute(finalQuery.c_str());
+            query = "";
+            i = 0;
+        }
+    }
+}
+
 // not very fast function but it is called only once a day, or on starting-up
 /// @param serverUp true if the server is already running, false when the server is started
 void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
@@ -9740,13 +9924,13 @@ bool DoDisplayText(WorldObject* source, int32 entry, Unit const* target, uint32 
         {
             case CHAT_TYPE_ZONE_YELL:
             case CHAT_TYPE_ZONE_EMOTE:
-                source->PlayDirectSound(sound, PlayPacketParameters(PLAY_ZONE, source->GetZoneId()));
+                source->PlayDirectSound(sound, PlayPacketParameters(PlayPacketSettings::ZONE, source->GetZoneId()));
                 break;
             case CHAT_TYPE_WHISPER:
             case CHAT_TYPE_BOSS_WHISPER:
                 // An error will be displayed for the text
                 if (target && target->GetTypeId() == TYPEID_PLAYER)
-                    source->PlayDirectSound(sound, PlayPacketParameters(PLAY_TARGET, (Player const*)target));
+                    source->PlayDirectSound(sound, PlayPacketParameters(PlayPacketSettings::TARGET, (Player const*)target));
                 break;
             default:
                 source->PlayDirectSound(sound);

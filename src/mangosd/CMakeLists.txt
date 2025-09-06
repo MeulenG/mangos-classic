@@ -56,12 +56,14 @@ target_link_libraries(${EXECUTABLE_NAME}
   shared
   game
   gsoap
+  cmangos-compile-option-interface
 )
 
 if(WIN32)
   if(MSVC)
     target_link_libraries(${EXECUTABLE_NAME}
       dbghelp
+      winmm.lib
     )
   endif()
   if(MINGW)

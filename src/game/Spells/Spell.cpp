@@ -46,6 +46,7 @@
 #include "MotionGenerators/PathFinder.h"
 #include "Spells/Scripts/SpellScript.h"
 #include "Entities/ObjectGuid.h"
+#include "Spells/SpellStacking.h"
 
 #ifdef ENABLE_PLAYERBOTS
 #include "playerbot/PlayerbotAI.h"
@@ -500,6 +501,8 @@ Spell::Spell(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags,
 
     m_overrideSpeed = false;
 
+    m_helpfulThreatCoeff = 1.f;
+
     m_ignoreRoot = IsIgnoreRootSpell(m_spellInfo);
 
     OnInit();
@@ -699,6 +702,7 @@ void Spell::FillTargetMap()
         {
             SendCastResult(SPELL_FAILED_IMMUNE); // guessed error
             finish(false);
+            return;
         }
     }
 
@@ -711,9 +715,10 @@ void Spell::FillTargetMap()
                 for (auto& ihit : m_UniqueTargetInfo)
                 {
                     ihit.effectHitMask = 0;
-                    ihit.effectMask = 0;
+                    ihit.missCondition = SPELL_MISS_IMMUNE2;
+                    ihit.effectDuration = 0;
                 }
-                return;
+                m_duration = 0;
             }
         }
     }
@@ -3403,14 +3408,6 @@ void Spell::_handle_finish_phase()
     // spell log
     if (m_needSpellLog)
         m_spellLog.SendToSet();
-
-    if (m_caster && m_caster->m_extraAttacks && IsSpellHaveEffect(m_spellInfo, SPELL_EFFECT_ADD_EXTRA_ATTACKS))
-    {
-        if (Unit* target = m_caster->GetVictim())
-            m_caster->DoExtraAttacks(target);
-        else
-            m_caster->m_extraAttacks = 0;
-    }
 }
 
 void Spell::SetCastItem(Item* item)
@@ -3466,6 +3463,12 @@ void Spell::update(uint32 difftime)
         {
             if (m_timer)
             {
+                if (m_targets.getUnitTarget() && !m_IsTriggeredSpell && !IsAllowingDeadTarget(m_spellInfo) && !m_targets.getUnitTarget()->IsAlive())
+                {
+                    cancel();
+                    return;
+                }
+
                 if (difftime >= m_timer)
                     m_timer = 0;
                 else
@@ -3483,14 +3486,20 @@ void Spell::update(uint32 difftime)
                 {
                     // check if player has jumped before the channeling finished
                     if (m_caster->m_movementInfo.HasMovementFlag(MOVEFLAG_JUMPING))
+                    {
                         cancel();
+                        return;
+                    }
 
                     // check for incapacitating player states
                     if (m_caster->IsCrowdControlled())
                     {
                         // certain channel spells are not interrupted
                         if (!m_spellInfo->HasAttribute(SPELL_ATTR_EX_IS_CHANNELED) && !m_spellInfo->HasAttribute(SPELL_ATTR_EX3_IGNORE_CASTER_AND_TARGET_RESTRICTIONS))
+                        {
                             cancel();
+                            return;
+                        }
                     }
 
                     if (m_spellInfo->HasAttribute(SPELL_ATTR_EX2_SPECIAL_TAMING_FLAG)) // these fail on lost target attention (aggro)
@@ -3499,7 +3508,10 @@ void Spell::update(uint32 difftime)
                         {
                             Unit* targetsTarget = target->GetTarget();
                             if (targetsTarget && targetsTarget != m_caster)
+                            {
                                 cancel();
+                                return;
+                            }
                         }
                     }
 
@@ -3548,6 +3560,7 @@ void Spell::update(uint32 difftime)
                             if (!m_caster->IsWithinCombatDistInMap(channelTarget, m_maxRange * 1.5f))
                             {
                                 cancel();
+                                return;
                             }
                         }
                     }
@@ -4430,7 +4443,7 @@ void Spell::HandleThreatSpells()
         // positive spells distribute threat among all units that are in combat with target, like healing
         if (positive)
         {
-            target->getHostileRefManager().threatAssist(affectiveCaster, threat, m_spellInfo, false, true);
+            target->getHostileRefManager().threatAssist(affectiveCaster, threat * m_helpfulThreatCoeff, m_spellInfo, false, true);
         }
         // for negative spells threat gets distributed among affected targets
         else
@@ -4853,10 +4866,10 @@ SpellCastResult Spell::CheckCast(bool strict)
 
                     if (m_trueCaster->GetObjectGuid() != existing->GetCasterGuid())
                     {
-                        if (sSpellMgr.IsSpellStackableWithSpellForDifferentCasters(m_spellInfo, existingSpell))
+                        if (sSpellStacker.IsSpellStackableWithSpellForDifferentCasters(m_spellInfo, existingSpell, sSpellMgr.IsSpellAnotherRankOfSpell(m_spellInfo->Id, existingSpell->Id), nullptr))
                             continue;
                     }
-                    else if (sSpellMgr.IsSpellStackableWithSpell(m_spellInfo, existingSpell))
+                    else if (sSpellStacker.IsSpellStackableWithSpell(m_spellInfo, existingSpell, nullptr))
                         continue;
 
                     if (!computed)
@@ -7277,40 +7290,16 @@ SpellCastResult Spell::CanOpenLock(SpellEffectIndex effIndex, uint32 lockId, Ski
                 SkillType tempSkillId = SkillByLockType(LockType(lockInfo->Index[j]));
                 skillId = tempSkillId;
 
-                bool oldCalc = true;
-                if (tempSkillId == SKILL_NONE) // these must not be carried over to the reference variable - unless more research comes up
-                {
-                    SkillLineAbilityMapBounds bounds = sSpellMgr.GetSkillLineAbilityMapBoundsBySpellId(m_spellInfo->Id);
-                    if (bounds.first != bounds.second)
-                    {
-                        SkillLineAbilityEntry const* skillInfo = bounds.first->second;
-                        tempSkillId = SkillType(skillInfo->skillId);
-                        oldCalc = false;
-                    }
-                }
+                skillValue = CalculateSpellEffectValue(effIndex, nullptr);
+                reqSkillValue = lockInfo->Skill[j];
 
                 if (tempSkillId != SKILL_NONE)
                 {
-                    uint32 spellSkillBonus = 0;
-                    if (oldCalc) // still correct but not usable for spell skill ids
-                    {
-                        // skill bonus provided by casting spell (mostly item spells)
-                        // add the damage modifier from the spell casted (cheat lock / skeleton key etc.) (use m_currentBasePoints, CalculateDamage returns wrong value)
-                        uint32 spellSkillBonus = uint32(m_currentBasePoints[effIndex]);
-                        reqSkillValue = lockInfo->Skill[j];
-
-                        // castitem check: rogue using skeleton keys. the skill values should not be added in this case.
-                        skillValue = m_CastItem || !m_trueCaster->IsPlayer() ?
-                            0 : static_cast<Player*>(m_trueCaster)->GetSkillValue(tempSkillId);
-
-                        skillValue += spellSkillBonus;
-                    }
-                    else if (lockInfo->Index[j] == LOCKTYPE_DISARM_TRAP)
+                    if (lockInfo->Index[j] == LOCKTYPE_DISARM_TRAP)
                     {
                         reqSkillValue = INT32_MAX;
                         if (GameObject* go = m_targets.getGOTarget())
                             reqSkillValue = go->GetLevel() * 5;
-                        skillValue = CalculateSpellEffectValue(effIndex, nullptr);
                     }
 
                     if (skillValue < reqSkillValue)

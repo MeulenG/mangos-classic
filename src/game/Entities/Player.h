@@ -918,7 +918,8 @@ class Player : public Unit
         static bool BuildEnumData(QueryResult* result,  WorldPacket& p_data);
 
         void SendInitialPacketsBeforeAddToMap();
-        void SendInitialPacketsAfterAddToMap();
+
+        void SendInitialPacketsAfterAddToMap(bool reconnect);
         void SendInstanceResetWarning(uint32 mapid, uint32 time);
 
         Creature* GetNPCIfCanInteractWith(ObjectGuid guid, uint32 npcflagmask);
@@ -1713,7 +1714,7 @@ class Player : public Unit
         void UpdateSpellTrainedSkills(uint32 spellId, bool apply);                                  // learns/unlearns skills dependent on a spell
         void LearnDefaultSkills();
 
-        virtual uint32 GetSpellRank(SpellEntry const* spellInfo) override;
+        virtual uint32 GetSpellRank(SpellEntry const* spellInfo) const override;
 
         bool IsLaunched() const { return m_launched; }
         void SetLaunched(bool apply) { m_launched = apply; }
@@ -2244,6 +2245,11 @@ class Player : public Unit
 
         std::pair<uint32, bool> GetLastData() { return std::make_pair(m_lastDbGuid, m_lastGameObject); }
         void SetLastData(uint32 dbGuid, bool gameobject) { m_lastDbGuid = dbGuid; m_lastGameObject = gameobject; }
+
+        int32 GetHighestAmmoMod() const { return m_highestAmmoMod; }
+        void SetHighestAmmoMod(int32 amount) { m_highestAmmoMod = amount; }
+
+        void UpdateRangedWeaponDependantAmmoHasteAura();
     protected:
         /*********************************************************/
         /***               BATTLEGROUND SYSTEM                 ***/
@@ -2422,6 +2428,7 @@ class Player : public Unit
         uint8 m_swingErrorMsg;
         float m_ammoDPSMin;
         float m_ammoDPSMax;
+        int32 m_highestAmmoMod;
 
         //////////////////// Rest System/////////////////////
         time_t time_inn_enter;

@@ -37,8 +37,8 @@
 #include <string>
 
 /// RASocket constructor
-RASocket::RASocket(boost::asio::io_service& service) :
-    MaNGOS::AsyncSocket<RASocket>(service), m_secure(sConfig.GetBoolDefault("RA.Secure", true)),
+RASocket::RASocket(boost::asio::io_context& context) :
+    MaNGOS::AsyncSocket<RASocket>(context), m_secure(sConfig.GetBoolDefault("RA.Secure", true)),
     m_authLevel(AuthLevel::None), m_accountLevel(AccountTypes::SEC_PLAYER), m_accountId(0)
 {
     if (sConfig.IsSet("RA.Stricted"))
@@ -76,7 +76,7 @@ bool RASocket::ProcessIncomingData()
 
     std::shared_ptr<std::string> buffer = std::make_shared<std::string>();
     auto self = shared_from_this();
-    ReadUntil(*buffer.get(), '\n', [self, buffer](const boost::system::error_code& error, std::size_t read)
+    ReadUntil(*buffer.get(), '\n', [self, buffer](const boost::system::error_code& error, std::size_t /*read*/)
     {
         if (error)
         {
@@ -217,5 +217,5 @@ void RASocket::Send(const std::string& message)
 {
     std::shared_ptr<std::string> textMessage = std::make_shared<std::string>(message);
     auto self(shared_from_this());
-    Write(textMessage->c_str(), textMessage->length(), [self, textMessage](const boost::system::error_code& error, std::size_t read) {});
+    Write(textMessage->c_str(), textMessage->length(), [self, textMessage](const boost::system::error_code& /*error*/, std::size_t /*written*/) {});
 }

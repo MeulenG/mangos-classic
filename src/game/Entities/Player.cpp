@@ -585,6 +585,7 @@ Player::Player(WorldSession* session): Unit(), m_taxiTracker(*this), m_mover(thi
     m_canBlock = false;
     m_ammoDPSMin = 0.0f;
     m_ammoDPSMax = 0.0f;
+    m_highestAmmoMod = 0;
 
     m_temporaryUnsummonedPetNumber = 0;
     m_BGPetSpell = 0;
@@ -5907,7 +5908,7 @@ void Player::LearnDefaultSkills()
     }
 }
 
-uint32 Player::GetSpellRank(SpellEntry const* spellInfo)
+uint32 Player::GetSpellRank(SpellEntry const* spellInfo) const
 {
     SkillLineAbilityMapBounds bounds = sSpellMgr.GetSkillLineAbilityMapBoundsBySpellId(spellInfo->Id);
     if (bounds.first != bounds.second)
@@ -7356,7 +7357,7 @@ void Player::ApplyEquipSpell(SpellEntry const* spellInfo, Item* item, bool apply
 
         DEBUG_LOG("WORLD: cast %s Equip spellId - %i", (item ? "item" : "itemset"), spellInfo->Id);
 
-        CastSpell(this, spellInfo, TRIGGERED_OLD_TRIGGERED, item);
+        CastSpell(nullptr, spellInfo, TRIGGERED_OLD_TRIGGERED, item);
     }
     else
     {
@@ -12819,6 +12820,9 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, Object* questGiver,
     saBounds = sSpellMgr.GetSpellAreaForAreaMapBounds(0);
     for (SpellAreaForAreaMap::const_iterator itr = saBounds.first; itr != saBounds.second; ++itr)
         itr->second->ApplyOrRemoveSpellIfCan(this, zone, area, false);
+
+    // resend quests status directly
+    UpdateForQuestWorldObjects();
 }
 
 bool Player::IsQuestExplored(uint32 quest_id) const
@@ -14427,7 +14431,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     if (time_diff > 15 * MINUTE)
         soberFactor = 0;
     else
-        soberFactor = 1 - time_diff / (15.0f * MINUTE);
+        soberFactor = 1 - time_diff / (15 * MINUTE);
     uint16 newDrunkenValue = uint16(soberFactor * m_drunk);
     SetDrunkValue(newDrunkenValue);
 
@@ -18011,7 +18015,7 @@ void Player::BeforeVisibilityDestroy(Creature* creature)
 {
     if (creature->IsInCombat() && IsInCombat())
     {
-        if (!creature->GetMap()->IsDungeon() && creature->getThreatManager().HasThreat(this, true))
+        if (!creature->GetMap()->IsDungeon() && !creature->IsCombatOnlyStealth() && creature->getThreatManager().HasThreat(this, true))
             getHostileRefManager().deleteReference(creature);
         if (Pet* pet = GetPet())
             if (pet->GetVictim() == creature)
@@ -18175,8 +18179,11 @@ void Player::SendInitialPacketsBeforeAddToMap()
         SetMover(this);
 }
 
-void Player::SendInitialPacketsAfterAddToMap()
+void Player::SendInitialPacketsAfterAddToMap(bool reconnect)
 {
+    GetSocial()->SendFriendList();
+    GetSocial()->SendIgnoreList();
+
     // update zone
     uint32 newzone, newarea;
     GetZoneAndAreaId(newzone, newarea);
@@ -18184,25 +18191,31 @@ void Player::SendInitialPacketsAfterAddToMap()
 
     CastSpell(this, 836, TRIGGERED_OLD_TRIGGERED);                             // LOGINEFFECT
 
-    // set some aura effects that send packet to player client after add player to map
-    // SendMessageToSet not send it to player not it map, only for aura that not changed anything at re-apply
-    // same auras state lost at far teleport, send it one more time in this case also
-    static const AuraType auratypes[] =
+    if (!reconnect)
     {
-        SPELL_AURA_GHOST,        SPELL_AURA_TRANSFORM,                 SPELL_AURA_WATER_WALK,
-        SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,                     SPELL_AURA_SAFE_FALL,
-        SPELL_AURA_MOD_STUN,     SPELL_AURA_MOD_ROOT,                  SPELL_AURA_MOD_FEAR,
-        SPELL_AURA_NONE
-    };
-    for (AuraType const* itr = &auratypes[0]; itr && itr[0] != SPELL_AURA_NONE; ++itr)
-    {
-        Unit::AuraList const& auraList = GetAurasByType(*itr);
-        if (!auraList.empty())
-            auraList.front()->ApplyModifier(true, true);
+        // set some aura effects that send packet to player client after add player to map
+        // SendMessageToSet not send it to player not it map, only for aura that not changed anything at re-apply
+        // same auras state lost at far teleport, send it one more time in this case also
+        static const AuraType auratypes[] =
+        {
+            SPELL_AURA_GHOST,        SPELL_AURA_TRANSFORM,                 SPELL_AURA_WATER_WALK,
+            SPELL_AURA_FEATHER_FALL, SPELL_AURA_HOVER,                     SPELL_AURA_SAFE_FALL,
+            SPELL_AURA_MOD_STUN,     SPELL_AURA_MOD_ROOT,                  SPELL_AURA_MOD_FEAR,
+            SPELL_AURA_NONE
+        };
+        for (AuraType const* itr = &auratypes[0]; itr && itr[0] != SPELL_AURA_NONE; ++itr)
+        {
+            Unit::AuraList const& auraList = GetAurasByType(*itr);
+            if (!auraList.empty())
+                auraList.front()->ApplyModifier(true, true);
+        }
     }
 
     if (IsImmobilizedState()) // TODO: Figure out if this protocol is correct
         SendMoveRoot(true);
+
+    // sync client auras timer
+    UpdateClientAuras();
 
     SendEnchantmentDurations();                             // must be after add to map
     SendItemDurations();                                    // must be after add to map
@@ -18609,7 +18622,8 @@ void Player::UpdateForQuestWorldObjects()
         if (m_clientGUID.IsGameObject())
         {
             if (GameObject* obj = GetMap()->GetGameObject(m_clientGUID))
-                obj->BuildValuesUpdateBlockForPlayerWithFlags(updateData, this, UF_FLAG_DYNAMIC);
+                if (sObjectMgr.IsGameObjectForQuests(obj->GetEntry()))
+                    obj->BuildValuesUpdateBlockForPlayerWithFlags(updateData, this, UF_FLAG_DYNAMIC);
         }
     }
     for (size_t i = 0; i < updateData.GetPacketCount(); ++i)
@@ -20652,4 +20666,21 @@ uint32 Player::LookupHighestLearnedRank(uint32 spellId)
             break;
     } while ((higherRank = sSpellMgr.GetNextSpellInChain(ownedRank)));
     return ownedRank;
+}
+
+void Player::UpdateRangedWeaponDependantAmmoHasteAura()
+{
+    int32 highest = 0;
+    Item* weapon = GetWeaponForAttack(RANGED_ATTACK);
+    if (weapon)
+        highest = GetMaxPositiveAuraModifierByItemClass(SPELL_AURA_MOD_RANGED_AMMO_HASTE, weapon);
+
+    if (highest != GetHighestAmmoMod())
+    {
+        if (GetHighestAmmoMod() > 0)
+            ApplyAttackTimePercentMod(RANGED_ATTACK, float(GetHighestAmmoMod()), false);
+        if (highest > 0)
+            ApplyAttackTimePercentMod(RANGED_ATTACK, float(highest), true);
+        SetHighestAmmoMod(highest);
+    }
 }

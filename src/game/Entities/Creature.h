@@ -22,6 +22,7 @@
 #include "Common.h"
 #include "Entities/Unit.h"
 #include "Globals/SharedDefines.h"
+#include "Entities/CreatureDefines.h"
 #include "Server/DBCEnums.h"
 #include "Util/Util.h"
 #include "Entities/CreatureSpellList.h"
@@ -104,7 +105,7 @@ struct CreatureInfo
     uint32  UnitFlags;                                      // enum UnitFlags mask values
     uint32  DynamicFlags;
     uint32  ExtraFlags;
-    uint32  CreatureTypeFlags;                              // enum CreatureTypeFlags mask values
+    uint32  TypeFlags;                                      // enum TypeFlags mask values
     uint32  StaticFlags;
     uint32  StaticFlags2;
     uint32  StaticFlags3;
@@ -187,9 +188,9 @@ struct CreatureInfo
 
     SkillType GetRequiredLootSkill() const
     {
-        if (CreatureTypeFlags & CREATURE_TYPEFLAGS_HERBLOOT)
+        if (HasFlag(CreatureTypeFlags::SKIN_WITH_HERBALISM))
             return SKILL_HERBALISM;
-        if (CreatureTypeFlags & CREATURE_TYPEFLAGS_MININGLOOT)
+        if (HasFlag(CreatureTypeFlags::SKIN_WITH_MINING))
             return SKILL_MINING;
 
         return SKILL_SKINNING;                          // normal case
@@ -197,7 +198,12 @@ struct CreatureInfo
 
     bool isTameable() const
     {
-        return CreatureType == CREATURE_TYPE_BEAST && Family != 0 && (CreatureTypeFlags & CREATURE_TYPEFLAGS_TAMEABLE);
+        return CreatureType == CREATURE_TYPE_BEAST && Family != 0 && HasFlag(CreatureTypeFlags::TAMEABLE);
+    }
+
+    bool HasFlag(CreatureTypeFlags flags) const
+    {
+        return bool(CreatureTypeFlags(TypeFlags) & flags);
     }
 };
 
@@ -226,8 +232,9 @@ struct EquipmentInfoRaw
 
 enum SpawnFlags
 {
-    SPAWN_FLAG_RUN_ON_SPAWN = 0x01,
-    SPAWN_FLAG_HOVER        = 0x02,
+    SPAWN_FLAG_RUN_ON_SPAWN     = 0x01,
+    SPAWN_FLAG_HOVER            = 0x02,
+    SPAWN_FLAG_DISABLE_GRAVITY  = 0x04,
 };
 
 struct CreatureSpawnTemplate
@@ -246,6 +253,7 @@ struct CreatureSpawnTemplate
 
     bool IsRunning() const { return (spawnFlags & SPAWN_FLAG_RUN_ON_SPAWN) != 0; }
     bool IsHovering() const { return (spawnFlags & SPAWN_FLAG_HOVER) != 0; }
+    bool IsGravityDisabled() const { return (spawnFlags & SPAWN_FLAG_DISABLE_GRAVITY) != 0; }
 };
 
 // from `creature` table
@@ -607,6 +615,7 @@ class Creature : public Unit
         bool IsTrainerOf(Player* pPlayer, bool msg) const;
         bool CanInteractWithBattleMaster(Player* pPlayer, bool msg) const;
         bool CanTrainAndResetTalentsOf(Player* pPlayer) const;
+        bool isInvisibleForAlive() const override;
 
         void FillGuidsListFromThreatList(GuidVector& guids, uint32 maxamount = 0);
 
@@ -673,6 +682,7 @@ class Creature : public Unit
         bool UpdateAllStats() override;
         void UpdateResistances(uint32 school) override;
         void UpdateArmor() override;
+        void UpdateMaxHealth() override;
         void UpdateAttackPowerAndDamage(bool ranged = false) override;
         void UpdateDamagePhysical(WeaponAttackType attType) override;
         virtual float GetConditionalTotalPhysicalDamageModifier(WeaponAttackType type) const;
@@ -713,7 +723,7 @@ class Creature : public Unit
         virtual void DeleteFromDB();                        // overwrited in Pet
         static void DeleteFromDB(uint32 lowguid, CreatureData const* data);
 
-        void PrepareBodyLootState();
+        void PrepareBodyLootState(Unit* killer);
         CreatureLootStatus GetLootStatus() const { return m_lootStatus; }
         virtual void InspectingLoot() override;
         void SetLootStatus(CreatureLootStatus status, bool forced = false);
@@ -758,7 +768,7 @@ class Creature : public Unit
         void Respawn();
         void SaveRespawnTime() override;
 
-        uint32 GetRespawnDelay() const { return m_respawnDelay; }
+        uint32 GetRespawnDelay() const override { return m_respawnDelay; }
         void SetRespawnDelay(uint32 delay, bool once = false) { m_respawnDelay = delay; m_respawnOverriden = true; m_respawnOverrideOnce = once; } // in seconds
         void SetRespawnDelay(std::chrono::seconds delay, bool once = false) { SetRespawnDelay(delay.count(), once); }
 
@@ -777,7 +787,7 @@ class Creature : public Unit
         uint32 GetInteractionPauseTimer() const { return m_interactionPauseTimer; }
 
         GridReference<Creature>& GetGridRef() { return m_gridRef; }
-        bool IsRegeneratingHealth() const { return (GetCreatureInfo()->RegenerateStats & REGEN_FLAG_HEALTH) != 0; }
+        bool IsRegeneratingHealth() const { return (GetCreatureInfo()->RegenerateStats & REGEN_FLAG_HEALTH) != 0 && !(GetCreatureInfo()->HasFlag(CreatureTypeFlags::ALLOW_INTERACTION_WHILE_IN_COMBAT)); }
         bool IsRegeneratingPower() const;
         virtual uint8 GetPetAutoSpellSize() const { return CREATURE_MAX_SPELLS; }
         virtual uint32 GetPetAutoSpellOnPos(uint8 pos) const
@@ -895,6 +905,9 @@ class Creature : public Unit
 
         void SetModelRunSpeed(float runSpeed) override { m_modelRunSpeed = runSpeed; }
 
+        bool IsCombatOnlyStealth() const { return m_combatOnlyStealth; }
+        void SetCombatOnlyStealth(bool state) { m_combatOnlyStealth = state; }
+
     protected:
         bool CreateFromProto(uint32 dbGuid, uint32 guidlow, CreatureInfo const* cinfo, const CreatureData* data = nullptr, GameEventCreatureData const* eventData = nullptr);
         bool InitEntry(uint32 Entry, const CreatureData* data = nullptr, GameEventCreatureData const* eventData = nullptr);
@@ -972,12 +985,16 @@ class Creature : public Unit
 
         bool m_imposedCooldown;
 
+        float m_healthMultiplier;
+
     private:
         GridReference<Creature> m_gridRef;
         CreatureInfo const* m_creatureInfo;
 
         CreatureInfo const* m_mountInfo;
         float m_modelRunSpeed;
+
+        bool m_combatOnlyStealth;
 };
 
 class ForcedDespawnDelayEvent : public BasicEvent

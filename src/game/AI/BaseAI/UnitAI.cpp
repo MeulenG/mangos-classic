@@ -262,6 +262,7 @@ CanCastResult UnitAI::DoCastSpellIfCan(Unit* target, uint32 spellId, uint32 cast
                     case SPELL_FAILED_TARGET_NO_WEAPONS:
                     case SPELL_FAILED_BAD_TARGETS:
                     case SPELL_FAILED_DONT_REPORT:
+                    case SPELL_FAILED_NOT_BEHIND:
                         canCastResult = CAST_FAIL_MISCELLANEOUS;
                         break;
                     default: break;
@@ -509,7 +510,7 @@ void UnitAI::CheckForHelp(Unit* who, Unit* me, float distance)
 
     // pulling happens once panic/retreating ends
     // current theory is that help aggro is never done if owner has suspended AI function during CC
-    if (who->hasUnitState(UNIT_STAT_PANIC | UNIT_STAT_RETREATING) || who->IsCrowdControlled())
+    if (who->hasUnitState(UNIT_STAT_RETREATING) || who->IsConfused() || who->IsStunned())
         return;
 
     if (me->CanInitiateAttack() && me->CanAttackOnSight(victim) && victim->isInAccessablePlaceFor(me) && victim->IsVisibleForOrDetect(me, me, false))
@@ -827,10 +828,6 @@ void UnitAI::TimedFleeingEnded()
 
 bool UnitAI::DoFlee(uint32 duration)
 {
-    Unit* victim = m_unit->GetVictim();
-    if (!victim)
-        return false;
-
     if (!duration)
         duration = sWorld.getConfig(CONFIG_UINT32_CREATURE_FAMILY_FLEE_DELAY);
 
@@ -1218,7 +1215,6 @@ void UnitAI::UpdateSpellLists()
             if (supportActionRoll > spells.ChanceSupportAction)
                 continue;
 
-        bool oldBehaviour = spell.CombatCondition == -1;
         if (spell.CombatCondition != -1 && spell.CombatCondition)
         {
             SpellEntry const* spellInfo = sSpellTemplate.LookupEntry<SpellEntry>(spell.SpellId);
@@ -1253,7 +1249,7 @@ void UnitAI::UpdateSpellLists()
     if (eligibleSpells.size() > 1 && sum != 0) // sum == 0 is meant to be priority based (lower position, higher priority)
         std::shuffle(eligibleSpells.begin(), eligibleSpells.end(), *GetRandomGenerator());
 
-    auto executeSpell = [&](uint32 spellId, uint32 probability, uint32 scriptId, Unit* target) -> bool
+    auto executeSpell = [&](uint32 spellId, uint32 scriptId, Unit* target) -> bool
     {
         CanCastResult castResult = DoCastSpellIfCan(target, spellId);
         if (castResult == CAST_OK)
@@ -1270,7 +1266,7 @@ void UnitAI::UpdateSpellLists()
     {
         uint32 spellId; uint32 probability; uint32 scriptId; Unit* target;
         std::tie(spellId, probability, scriptId, target) = data;
-        executeSpell(spellId, probability, scriptId, target);
+        executeSpell(spellId, scriptId, target);
     }
 
     // will hit first eligible spell when sum is 0 because roll -1 < probability 0
@@ -1285,7 +1281,7 @@ void UnitAI::UpdateSpellLists()
             std::tie(spellId, probability, scriptId, target) = *itr;
             if (spellRoll < int32(probability))
             {
-                success = executeSpell(spellId, probability, scriptId, target);
+                success = executeSpell(spellId, scriptId, target);
                 itr = eligibleSpells.erase(itr);
             }
             else

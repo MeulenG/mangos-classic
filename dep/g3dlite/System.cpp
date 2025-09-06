@@ -35,7 +35,7 @@
 
 // Uncomment the following line to turn off G3D::System memory
 // allocation and use the operating system's malloc.
-//#define NO_BUFFERPOOL
+#define NO_BUFFERPOOL
 
 #if defined(__i386__) || defined(__x86_64__) || defined(G3D_WIN32)
 #    define G3D_NOT_OSX_PPC
@@ -1702,6 +1702,15 @@ void System::cpuid(CPUIDFunction func, uint32& eax, uint32& ebx, uint32& ecx, ui
 }
 
 #elif defined(G3D_LINUX) && ( defined(__arm__) || defined(__aarch64__))
+// non-x86 CPU; no CPUID, at least in userspace
+void System::cpuid(CPUIDFunction func, uint32& eax, uint32& ebx, uint32& ecx, uint32& edx) {
+    eax = 0;
+    ebx = 0;
+    ecx = 0;
+    edx = 0;
+}
+
+#elif defined(G3D_LINUX) && ( defined(__riscv) || defined(__riscv32) || defined(__riscv__) || defined(_riscv))
 // non-x86 CPU; no CPUID, at least in userspace
 void System::cpuid(CPUIDFunction func, uint32& eax, uint32& ebx, uint32& ecx, uint32& edx) {
     eax = 0;

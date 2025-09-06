@@ -52,13 +52,13 @@ namespace NamreebAnticheat
 float Antispam::Rate() const
 {
     auto const milliseconds = WorldTimer::getMSTime() - _creationTime;
-    auto const seconds = static_cast<float>(milliseconds) / IN_MILLISECONDS;
+    auto const seconds = static_cast<float>(milliseconds) / float(IN_MILLISECONDS);
 
     // if they have not been online long enough, return zero
     if (seconds < static_cast<float>(sAnticheatConfig.GetAntispamRateGracePeriod()))
         return 0.f;
 
-    return Total() / (seconds * MINUTE);
+    return Total() / (seconds * float(MINUTE));
 }
 
 void Antispam::Notify(const char *format, ...)
@@ -400,7 +400,7 @@ uint32 Antispam::RepetitionScore() const
     if (auto const timeScale = sAnticheatConfig.GetAntispamRepetitionTimeScale())
     {
         auto const milliseconds = WorldTimer::getMSTime() - _creationTime;
-        auto const lifetime = static_cast<float>(milliseconds) / IN_MILLISECONDS;
+        auto const lifetime = static_cast<float>(milliseconds) / float(IN_MILLISECONDS);
 
         if (lifetime > 0)
             score *= lifetime * timeScale;

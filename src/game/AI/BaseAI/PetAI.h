@@ -31,6 +31,7 @@ class PetAI : public CreatureAI
     public:
 
         explicit PetAI(Creature* creature);
+        explicit PetAI(Creature* creature, uint32 combatActions);
 
         void MoveInLineOfSight(Unit* who) override;
         void AttackStart(Unit* who) override;
@@ -42,6 +43,7 @@ class PetAI : public CreatureAI
 
         void OnUnsummon() override;
         void JustDied(Unit* killer) override;
+        void JustRespawned() override;
 
     protected:
         std::string GetAIName() override { return "PetAI"; }

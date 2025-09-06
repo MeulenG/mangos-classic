@@ -467,6 +467,12 @@ void ScriptMgr::LoadScripts(ScriptMapType scriptType)
                                     tablename, tmp.removeAura.spellId, tmp.id);
                     continue;
                 }
+                if (tmp.removeAura.defaultOrChargeOrStack > 2)
+                {
+                    sLog.outErrorDb("Table `%s` using invalid defaultOrChargeOrStack (id: %u) in SCRIPT_COMMAND_REMOVE_AURA for script id %u, skipping",
+                        tablename, tmp.removeAura.spellId, tmp.id);
+                    continue;
+                }
                 break;
             }
             case SCRIPT_COMMAND_CAST_SPELL:                 // 15
@@ -1832,7 +1838,7 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
                 if (m_script->textId[0] == 1 || m_script->textId[0] == 2 && !creature->GetCreatureGroup())
                 {
                     Position const& respPos = creature->GetRespawnPosition();
-                    creature->GetMotionMaster()->MovePoint(0, respPos, ForcedMovement(m_script->moveTo.forcedMovement), 0.f, true);
+                    creature->GetMotionMaster()->MovePoint(0, respPos, ForcedMovement(m_script->moveTo.forcedMovement), 0.f, true, creature->GetObjectGuid(), m_script->moveTo.relayId);
                 }
                 else if (m_script->textId[0] == 2)
                 {
@@ -2031,7 +2037,6 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
             float z = m_script->z;
             float o = m_script->o;
             bool run = m_script->textId[0] == 1;
-            uint32 relayId = m_script->textId[1];
 
             TempSpawnSettings settings(pSource, m_script->summonCreature.creatureEntry, x, y, z, o, m_script->summonCreature.despawnDelay ? TEMPSPAWN_TIMED_OOC_OR_DEAD_DESPAWN : TEMPSPAWN_DEAD_DESPAWN, m_script->summonCreature.despawnDelay, (m_script->data_flags& SCRIPT_FLAG_COMMAND_ADDITIONAL) != 0, run, m_script->summonCreature.pathId);
             settings.spawnDataEntry = m_script->textId[3];
@@ -2106,16 +2111,24 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
             if (LogIfNotUnit(pSource))
                 break;
 
-            // Flag Command Additional removes aura by caster
-            if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
+            Unit* uSource = static_cast<Unit*>(pSource);
+            if (m_script->removeAura.defaultOrChargeOrStack == 0)
             {
-                if (LogIfNotUnit(pTarget))
-                    break;
-
-                ((Unit*)pSource)->RemoveAurasByCasterSpell(m_script->removeAura.spellId, pTarget->GetObjectGuid());
+                // Flag Command Additional removes aura by caster
+                if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
+                {
+                    if (LogIfNotUnit(pTarget))
+                        break;
+                    uSource->RemoveAurasByCasterSpell(m_script->removeAura.spellId, pTarget->GetObjectGuid());
+                }
+                else
+                    uSource->RemoveAurasDueToSpell(m_script->removeAura.spellId);
             }
-            else
-                ((Unit*)pSource)->RemoveAurasDueToSpell(m_script->removeAura.spellId);
+            else if (m_script->removeAura.defaultOrChargeOrStack == 1)
+                uSource->RemoveAuraCharge(m_script->removeAura.spellId);
+            else if (m_script->removeAura.defaultOrChargeOrStack == 2)
+                uSource->RemoveAuraStack(m_script->removeAura.spellId);
+
             break;
         }
         case SCRIPT_COMMAND_CAST_SPELL:                     // 15
@@ -2183,13 +2196,13 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
                     break;
             }
 
-            PlayPacketParameters params(PLAY_SET);
+            PlayPacketParameters params(PlayPacketSettings::SET);
             if (pSoundTarget)
-                params = PlayPacketParameters(PLAY_TARGET, pSoundTarget);
+                params = PlayPacketParameters(PlayPacketSettings::TARGET, pSoundTarget);
             if (m_script->playSound.flags & 8) // playParameter is zoneId
-                params = PlayPacketParameters(PLAY_ZONE, m_script->playSound.playParameter ? m_script->playSound.playParameter : pSource->GetZoneId());
+                params = PlayPacketParameters(PlayPacketSettings::ZONE, m_script->playSound.playParameter ? m_script->playSound.playParameter : pSource->GetZoneId());
             if (m_script->playSound.flags & 16) // playParameter is areaId
-                params = PlayPacketParameters(PLAY_AREA, m_script->playSound.playParameter ? m_script->playSound.playParameter : pSource->GetAreaId());
+                params = PlayPacketParameters(PlayPacketSettings::AREA, m_script->playSound.playParameter ? m_script->playSound.playParameter : pSource->GetAreaId());
 
             if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL)
                 pSource->PlayMusic(m_script->playSound.soundId, params);
@@ -2256,7 +2269,6 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
                 break;
             }
 
-            uint32 movementType = m_script->movement.movementType;
             uint32 wanderORpathId = m_script->movement.wanderORpathId;
 
             WaypointPathOrigin wp_origin = PATH_NO_PATH;
@@ -2776,7 +2788,14 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
                     sLog.outErrorDb(" DB-SCRIPTS: Process table `%s` id %u, _MOVE_DYNAMIC called with maxDist == 0, but resultingSource == resultingTarget (== %s)", m_table, m_script->id, source->GetGuidStr().c_str());
                     break;
                 }
-                pTarget->GetContactPoint(source, x, y, z, m_script->moveDynamic.fixedDist);
+                if (m_script->data_flags & SCRIPT_FLAG_COMMAND_ADDITIONAL) // no bounding radius
+                {
+                    pTarget->GetNearPoint2dAt(pTarget->GetPositionX(), pTarget->GetPositionY(), x, y, m_script->moveDynamic.fixedDist, pTarget->GetAngle(source));
+                    if (source)
+                        source->UpdateAllowedPositionZ(x, y, z, pTarget->GetMap()); // update to LOS height if available
+                }
+                else
+                    pTarget->GetContactPoint(source, x, y, z, m_script->moveDynamic.fixedDist);
             }
             else                                            // Calculate position
             {
@@ -3134,7 +3153,6 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
 
                     Creature* leader = static_cast<Creature*>(pTarget);
 
-                    CreatureGroup* leaderGroup = leader->GetCreatureGroup();
                     FormationSlotDataSPtr leaderSlot = leader->GetFormationSlot();
                     FormationData* leaderFormation = nullptr;
                     if (leaderSlot)
@@ -3168,7 +3186,6 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
 
                     Creature* leader = static_cast<Creature*>(pTarget);
 
-                    CreatureGroup* leaderGroup = leader->GetCreatureGroup();
                     FormationSlotDataSPtr leaderSlot = leader->GetFormationSlot();
                     FormationData* leaderFormation = nullptr;
                     if (leaderSlot)
@@ -3200,7 +3217,6 @@ bool ScriptAction::ExecuteDbscriptCommand(WorldObject* pSource, WorldObject* pTa
 
                     Creature* leader = static_cast<Creature*>(pTarget);
 
-                    CreatureGroup* leaderGroup = leader->GetCreatureGroup();
                     FormationSlotDataSPtr leaderSlot = leader->GetFormationSlot();
                     FormationData* leaderFormation = nullptr;
                     if (leaderSlot)
