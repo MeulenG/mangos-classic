@@ -11,7 +11,7 @@ confinement: strict
 
 apps:
   mangosd:
-    command: $SNAPCRAFT_PART_SRC/run/bin/mangosd -c parts/cmangos-server/run/etc/mangosd.conf
+    command: $SNAPCRAFT_PART_INSTALL/bin/mangosd -c $SNAPCRAFT_PART_INSTALL/etc/mangosd.conf
     daemon: simple
     restart-condition: always
     plugs: [network, network-bind]
@@ -20,7 +20,7 @@ apps:
       MYSQL_UNIX_PORT: $SNAP_COMMON/mysql.sock
 
   realmd:
-    command: $SNAPCRAFT_PART_SRC/run/bin/realmd -c parts/cmangos-server/run/etc/realmd.conf
+    command: $SNAPCRAFT_PART_INSTALL/bin/realmd -c $SNAPCRAFT_PART_INSTALL/etc/realmd.conf
     daemon: simple
     restart-condition: always
     plugs: [network, network-bind]
@@ -32,6 +32,8 @@ parts:
   cmangos-server:
     plugin: cmake
     source: releases/cmangos-server-build.zip
+    cmake-parameters:
+      - -DCMAKE_INSTALL_PREFIX=/usr
     build-packages:
       - build-essential
       - gcc-12
@@ -55,6 +57,13 @@ parts:
     stage-packages:
       - mysql-server
       - mysql-client
+      - libmysqlclient21
+      - libcurl4
+      - libldap-2.5-0
+      - libsasl2-2
+      - libnghttp2-14
+      - libpsl5
+      - librtmp1
     build-snaps:
       - cmake/latest/stable
     build-environment:
@@ -65,8 +74,8 @@ parts:
           --slave /usr/bin/g++ g++ /usr/bin/g++-12
       export CC=gcc
       export CXX=g++
-      cmake ../src -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=\../run -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DBUILD_MODULES=ON -DBUILD_MODULE_MANGOSTOOL=ON
+      cmake ../src -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=$SNAPCRAFT_PART_INSTALL -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DBUILD_MODULES=ON -DBUILD_MODULE_MANGOSTOOL=ON
       make -j6
       make install
-      cp ../run/etc/mangosd.conf.dist ../run/etc/mangosd.conf
-      cp ../run/etc/realmd.conf.dist ../run/etc/realmd.conf
+      cp $SNAPCRAFT_PART_INSTALL/etc/mangosd.conf.dist $SNAPCRAFT_PART_INSTALL/etc/mangosd.conf
+      cp $SNAPCRAFT_PART_INSTALL/etc/realmd.conf.dist $SNAPCRAFT_PART_INSTALL/etc/realmd.conf
