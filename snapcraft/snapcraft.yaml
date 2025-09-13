@@ -11,7 +11,7 @@ confinement: strict
 
 apps:
   mangosd:
-    command: $SNAPCRAFT_PART_INSTALL/bin/mangosd -c $SNAPCRAFT_PART_INSTALL/etc/mangosd.conf
+    command: /bin/mangosd -c /etc/mangosd.conf
     daemon: simple
     restart-condition: always
     plugs: [network, network-bind]
@@ -20,7 +20,7 @@ apps:
       MYSQL_UNIX_PORT: $SNAP_COMMON/mysql.sock
 
   realmd:
-    command: $SNAPCRAFT_PART_INSTALL/bin/realmd -c $SNAPCRAFT_PART_INSTALL/etc/realmd.conf
+    command: /bin/realmd -c /etc/realmd.conf
     daemon: simple
     restart-condition: always
     plugs: [network, network-bind]
@@ -32,8 +32,6 @@ parts:
   cmangos-server:
     plugin: cmake
     source: releases/cmangos-server-build.zip
-    cmake-parameters:
-      - -DCMAKE_INSTALL_PREFIX=/usr
     build-packages:
       - build-essential
       - gcc-12
@@ -71,7 +69,7 @@ parts:
       - PATH: /snap/bin:$PATH
     override-build: |
       update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 120 \
-          --slave /usr/bin/g++ g++ /usr/bin/g++-12
+            --slave /usr/bin/g++ g++ /usr/bin/g++-12
       export CC=gcc
       export CXX=g++
       cmake ../src -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=$SNAPCRAFT_PART_INSTALL -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DBUILD_MODULES=ON -DBUILD_MODULE_MANGOSTOOL=ON
