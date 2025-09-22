@@ -67,41 +67,37 @@ enum
 
 struct zalazaneAI : public ScriptedAI
 {
-	zalazaneAI(Creature* pCreature) : ScriptedAI(pCreature) { Reset(); }
+    zalazaneAI(Creature* pCreature) : ScriptedAI(pCreature) { Reset(); }
 
-    // Let's do phases
-	uint32 m_uiPhase;
-
+    uint32 m_uiPhase;
     std::list<Creature*> m_Serpents;
+    bool m_serpentsSummoned;
+    bool m_phase2Started;
 
     void Reset() override
     {
         m_uiPhase = PHASE_1;
         m_Serpents.clear();
+        m_serpentsSummoned = false;
+        m_phase2Started = false;
     }
-
-    bool m_serpentsSummoned = false;
 
     void Phase1()
     {
         if (m_creature->GetHealthPercent() < 90.0f)
         {
-            CanCastResult result = DoCastSpellIfCan(m_creature, SPELL_THUNDERSTORM);
-
-            if (result == CAST_OK)
-            {
+            if (DoCastSpellIfCan(m_creature, SPELL_THUNDERSTORM) == CAST_OK)
                 DoCastSpellIfCan(m_creature, SPELL_POISON_BOLT_VOLLEY);
-            }
 
             if (!m_serpentsSummoned)
             {
                 for (int i = 0; i < 3; ++i)
                 {
-                    float angle = i * M_PI / 1.5f;
+                    float angle = i * (2.0f * M_PI / 3.0f); // 3 around circle
                     float x = m_creature->GetPositionX() + 3.0f * cos(angle);
                     float y = m_creature->GetPositionY() + 3.0f * sin(angle);
                     float z = m_creature->GetPositionZ();
-                    float orientation = m_creature->GetOrientation();
+                    float orientation = angle; // make them face outwards
 
                     uint32 despawnTime = 30000;
                     if (Creature* pSerpent = m_creature->SummonCreature(NPC_SERPENT, x, y, z, orientation, TEMPSPAWN_CORPSE_DESPAWN, despawnTime))
@@ -114,38 +110,42 @@ struct zalazaneAI : public ScriptedAI
             }
 
             if (m_creature->GetHealthPercent() < 60.0f)
-            {
                 DoCastSpellIfCan(m_creature, SPELL_HEALING_WAVE, CAST_FORCE_CAST);
-            }
 
-            if (m_creature->GetHealthPercent() < 15.0f) 
-            {
+            if (m_creature->GetHealthPercent() < 15.0f)
                 m_uiPhase = PHASE_2;
-            }
         }
     }
 
-    void Phase2() {
-        // New Boss Setup
+    void Phase2()
+    {
+        if (m_phase2Started)
+            return;
+
+        m_phase2Started = true;
+        // New Boss Setup (run once)
         m_creature->SetHealth(1000);
         m_creature->SetDisplayId(11371);
         DoCastSpellIfCan(m_creature, SPELL_TRANQUILIZING_POISON);
     }
 
-	void UpdateAI(const uint32 uiDiff) override
+    void UpdateAI(const uint32 uiDiff) override
     {
-		switch (m_uiPhase)
-		{
-			case PHASE_1: {
-				Phase1();
-			}
-			case PHASE_2: {
-                Phase2();
-			}
-		}
+        // ensure target exists
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
+            return;
+
+        switch (m_uiPhase)
+        {
+            case PHASE_1: Phase1(); break;
+            case PHASE_2: Phase2(); break;
+            default: break;
+        }
+
         DoMeleeAttackIfReady();
     }
 };
+
 
 UnitAI* GetAI_Zalazane(Creature* pCreature)
 {
