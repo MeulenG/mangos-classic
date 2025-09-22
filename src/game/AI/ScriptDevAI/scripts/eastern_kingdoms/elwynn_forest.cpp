@@ -48,62 +48,80 @@ struct hoggerAI : public ScriptedAI
 
 	uint32 m_uiResetTimer;
 	// Let's do phases
-	uint32 m_uiPhase;
+    uint32 m_uiPhase;
 	uint32 m_uiTransformTimer;
-	uint32 m_uiBreathTimer;
+    uint32 m_uiBreathTimer = 8000;
+    bool m_hasTransformed;
 
 	void Reset() override
-	{
-		// Reset phase
-		m_uiPhase = PHASE_1;
-	}
-	void WatchAndChangeToPhase2() {
-		//while (m_creature->GetHealthPercent() < 66.0f) {
-		if (m_creature->GetHealthPercent() < 66.0f) {
-			DoCastSpellIfCan(m_creature, SPELL_NIBLE_REFLEXES, CAST_AURA_NOT_PRESENT);
-			if (m_creature->GetHealthPercent() < 20.0f) {
-				m_uiPhase = PHASE_2;
-			}
-		}
-	}
+    {
+        m_uiPhase = PHASE_1;
+        m_uiBreathTimer = 8000;
+        m_hasTransformed = false;
+    }
 
-	bool TransformAndChangeToPhase3()
-	{
-		if (m_creature->GetHealthPercent() < 20.0f) {
-			m_creature->SetDisplayId(6374);
-			m_creature->SetMaxHealth(2000);
-			m_creature->SetLevel(12);
-			m_uiPhase = PHASE_3;
-			return true;
-		}
-		return false;
-	}
+    void WatchAndChangeToPhase2()
+    {
+        if (m_creature->GetHealthPercent() < 66.0f && m_uiPhase == PHASE_1)
+        {
+            DoCastSpellIfCan(m_creature, SPELL_NIBLE_REFLEXES, CAST_AURA_NOT_PRESENT);
+            m_uiPhase = PHASE_2;
+        }
+    }
 
-	void UpdateAI(const uint32 uiDiff) override
-	{
-		switch (m_uiPhase)
-		{
-		case PHASE_1: {
-			WatchAndChangeToPhase2();
-		}
-		case PHASE_2: {
-			if (m_creature->GetHealthPercent() < 20.0f) {
-				if (DoCastSpellIfCan(m_creature, SPELL_SMITE_STOMP, CAST_TRIGGERED | CAST_AURA_NOT_PRESENT) == CAST_OK) {
-					m_creature->RemoveAurasDueToSpell(SPELL_NIBLE_REFLEXES);
-					TransformAndChangeToPhase3();
-				}
-			}
-		}
-		case PHASE_3: {
-			if (TransformAndChangeToPhase3() == true) {
-				if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_FLAME_BREATH) == CAST_OK) {
-					DoCastSpellIfCan(nullptr, SPELL_TAIL_SWIPE);
-				}
-			}
-		}
-		}
-		DoMeleeAttackIfReady();
-	}
+    bool TransformAndChangeToPhase3()
+    {
+        if (m_creature->GetHealthPercent() < 20.0f && !m_hasTransformed)
+        {
+            m_creature->SetDisplayId(6374);
+            m_creature->SetLevel(15);
+            m_creature->SetMaxHealth(2000);
+            m_creature->SetHealth(300);
+
+            m_creature->MonsterSay(
+                "Heh... heh... you thought to corner a WRETCHED GNOLL? HOW AMUSING. THIS MASK OF FUR AND FILTH WAS ONLY A GAME. NOW TREMBLE, MORTALS, BEFORE THE TRUE POWER OF THE "
+                "DRAGON WHO WILL INVADE YOUR PRECIOUS STORMWIND!",
+                LANG_UNIVERSAL);
+
+            m_uiPhase = PHASE_3;
+            m_hasTransformed = true;
+            return true;
+        }
+        return false;
+    }
+
+    void UpdateAI(const uint32 uiDiff) override
+    {
+        switch (m_uiPhase)
+        {
+            case PHASE_1: WatchAndChangeToPhase2(); break;
+
+            case PHASE_2:
+                if (m_creature->GetHealthPercent() < 20.0f)
+                {
+                    if (DoCastSpellIfCan(m_creature, SPELL_SMITE_STOMP, CAST_TRIGGERED | CAST_AURA_NOT_PRESENT) == CAST_OK)
+                    {
+                        m_creature->RemoveAurasDueToSpell(SPELL_NIBLE_REFLEXES);
+                        TransformAndChangeToPhase3();
+                    }
+                }
+                break;
+
+            case PHASE_3:
+                if (m_hasTransformed)
+                {
+                    if (m_uiBreathTimer <= uiDiff)
+                    {
+                        if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_FLAME_BREATH) == CAST_OK)
+                            m_uiBreathTimer = 8000;
+                    }
+                    else
+                        m_uiBreathTimer -= uiDiff;
+                }
+                break;
+        }
+        DoMeleeAttackIfReady();
+    }
 };
 
 UnitAI* GetAI_Hogger(Creature* pCreature)
@@ -141,4 +159,8 @@ struct go_marshal_haggards_chestAI : public GameObjectAI
 
 void AddSC_elwynn_forest()
 {
+    Script* pNewScript = new Script;
+    pNewScript->Name = "npc_hogger";
+    pNewScript->GetAI = &GetAI_Hogger;
+    pNewScript->RegisterSelf();
 }
